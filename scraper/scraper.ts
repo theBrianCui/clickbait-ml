@@ -16,6 +16,9 @@ const input_file_lines = fs.readFileSync(args[0], "utf8")
     .map((str: string) => { return str.trim() })
     .filter((str: string) => { return str !== "" });
 
+const MAX_RECURSION_DEPTH: number = parseInt(args[1], 10) || 0;
+const ABSOLUTE_URL_REGEX: RegExp = new RegExp('^(?:[a-z]+:)?//', 'i');
+
 function findTextNodes(root: HTMLElement): Array<string> {
     let text_content: Array<string> =
         root.textContent.split("\n")
@@ -37,39 +40,63 @@ function findTextNodes(root: HTMLElement): Array<string> {
 function validHyperlinkNode(node: HTMLAnchorElement) {
     let dest_link: string = node.href.trim();
     return dest_link &&
-           dest_link.indexOf("javascript:") !== 0 &&
-           dest_link.indexOf("about:") !== 0;
+        dest_link.indexOf("javascript:") !== 0 &&
+        dest_link.indexOf("about:") !== 0;
 }
 
-console.log("[");
-let all_requests = [];
+function createRequestPromise(urls: Array<string>, depth: number = 0) {
+    if (depth > MAX_RECURSION_DEPTH || urls.length === 0) return [];
+    let all_requests: Array<Promise<any>> = [];
+
+    for (let i = 0; i < urls.length; ++i) {
+        let url = urls[i];
+        let req: Promise<any> = request(url).then((res) => {
+            // render the HTML, then retrieve all the anchor tags
+            return new JSDOM(res);
+
+        }).catch((e) => {
+            // if render failed, just render a blank page.
+            return new JSDOM("");
+
+        }).then((dom): Array<string> => {
+            const anchor_nodes: Array<HTMLAnchorElement> = Array.from(dom.window.document.querySelectorAll('a'))
+                .filter(validHyperlinkNode);
+
+            if (anchor_nodes.length === 0) return [];
+            let inner_urls: Array<string> = [];
+
+            for (let i = 0; i < anchor_nodes.length; ++i) {
+                let anchor_node = anchor_nodes[i];
+                let dest_link = anchor_node.href.trim();
+
+                // skip links that have no text content
+                let text_content: Array<string> = findTextNodes(anchor_node);
+                if (text_content.length === 0 || text_content.join("").trim() === "") continue;
+
+                console.log(`${url} (${depth}) : ${JSON.stringify(text_content)},`);
+
+                // push absolute urls to inner_urls
+                if (ABSOLUTE_URL_REGEX.test(dest_link)) {
+                    inner_urls.push(dest_link);
+                } else {
+                    inner_urls.push("https://" + dest_link);
+                }
+            }
+
+            return inner_urls;
+
+        }).then((inner_urls: Array<string>) => {
+            // recursively search children pages with depth + 1
+            return Promise.all(createRequestPromise(inner_urls, depth + 1));
+        });
+
+        all_requests.push(req);
+    }
+
+    return all_requests;
+}
 
 // retrieve each page and prints its links, asynchronously
-input_file_lines.forEach((url) => {
-    let full_url = "https://www." + url;
-
-    all_requests.push(request(full_url).then((res) => {
-
-        // render the HTML, then retrieve all the anchor tags
-        const dom: JSDOM = new JSDOM(res);
-        const anchor_nodes: Array<HTMLAnchorElement> = Array.from(dom.window.document.querySelectorAll('a'))
-            .filter(validHyperlinkNode);
-
-        if (anchor_nodes.length === 0) return;
-
-        for (let i = 0; i < anchor_nodes.length; ++i) {
-            let anchor_node = anchor_nodes[i];
-            let dest_link = anchor_node.href.trim();
-
-            // skip links that have no text content
-            let text_content: Array<string> = findTextNodes(anchor_node);
-            if (text_content.length === 0 || text_content.join("").trim() === "") continue;
-
-            console.log(JSON.stringify(text_content) + ",");
-        }
-    }));
-})
-
-Promise.all(all_requests).then(() => {
-    console.log("]");
-})
+Promise.all(createRequestPromise(input_file_lines)).then(() => { 
+    console.log("DONE!");
+});
