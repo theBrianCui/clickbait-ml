@@ -17,21 +17,18 @@ var input_file_lines = fs.readFileSync(args[0], "utf8")
     .filter(function (str) { return str !== ""; });
 var MAX_RECURSION_DEPTH = parseInt(args[1], 10) || 0;
 var ABSOLUTE_URL_REGEX = new RegExp('^(?:[a-z]+:)?//', 'i');
+var visited_url_set = {};
+var known_links = {};
+/* Retrieve the inner textNodes of a given HTMLElement.
+    The .textContent property is inherently recursive, but the results are concatenated.
+    To retrieve the nodes separately, we split on \n, trim the results, and ignore blanks. */
 function findTextNodes(root) {
     var text_content = root.textContent.split("\n")
         .map(function (str) { return str.trim(); })
         .filter(function (str) { return str !== ""; });
-    /*
-    if (root.children.length > 0) {
-        for (let i = 0; i < root.children.length; ++i) {
-            text_content.concat(findTextNodes(root.children[i] as HTMLElement));
-        }
-    } else {
-        text_content.concat([root.textContent])
-    }
-    */
     return text_content;
 }
+/* A valid hyperlink is one that points to another HTTP page. */
 function validHyperlinkNode(node) {
     var dest_link = node.href.trim();
     return dest_link &&
@@ -52,6 +49,7 @@ function createRequestPromise(urls, depth) {
             // if render failed, just render a blank page.
             return new jsdom_1.JSDOM("");
         }).then(function (dom) {
+            /* Get all the anchor tags and keep the valid hyperlinks. */
             var anchor_nodes = Array.from(dom.window.document.querySelectorAll('a'))
                 .filter(validHyperlinkNode);
             if (anchor_nodes.length === 0)
@@ -60,23 +58,34 @@ function createRequestPromise(urls, depth) {
             for (var i_1 = 0; i_1 < anchor_nodes.length; ++i_1) {
                 var anchor_node = anchor_nodes[i_1];
                 var dest_link = anchor_node.href.trim();
+                /* Relative URLs should be converted to absolute URLs as the canonical form. */
+                var absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
+                    : "https://" + dest_link;
                 // skip links that have no text content
                 var text_content = findTextNodes(anchor_node);
-                if (text_content.length === 0 || text_content.join("").trim() === "")
+                var text_content_concat = text_content.join("").trim();
+                if (text_content.length === 0 || text_content_concat === "")
                     continue;
-                console.log(url + " (" + depth + ") : " + JSON.stringify(text_content) + ",");
-                // push absolute urls to inner_urls
-                if (ABSOLUTE_URL_REGEX.test(dest_link)) {
-                    inner_urls.push(dest_link);
+                /* only print links that have unique text content */
+                if (!known_links[text_content_concat]) {
+                    console.log(url + " (" + depth + ") : " + JSON.stringify(text_content) + ",");
+                    known_links[text_content_concat] = true;
                 }
-                else {
-                    inner_urls.push("https://" + dest_link);
+                /* only push new URLs we haven't seen before */
+                if (!visited_url_set[absolute_url]) {
+                    inner_urls.push(absolute_url);
+                    visited_url_set[absolute_url] = true;
                 }
             }
             return inner_urls;
         }).then(function (inner_urls) {
-            // recursively search children pages with depth + 1
-            return Promise.all(createRequestPromise(inner_urls, depth + 1));
+            /* Recursively search children pages with depth + 1 */
+            if (depth < MAX_RECURSION_DEPTH) {
+                return Promise.all(createRequestPromise(inner_urls, depth + 1));
+            }
+            else {
+                return [];
+            }
         });
         all_requests.push(req);
     };
@@ -86,6 +95,4 @@ function createRequestPromise(urls, depth) {
     return all_requests;
 }
 // retrieve each page and prints its links, asynchronously
-Promise.all(createRequestPromise(input_file_lines)).then(function () {
-    console.log("DONE!");
-});
+createRequestPromise(input_file_lines);
