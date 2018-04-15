@@ -143,7 +143,7 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
                 known_clickbait_nodes = known_clickbait_nodes.concat(clickbait_nodes);
             }
 
-            console.log(`url: ${url}, adapter_selectors: ${adapter_selectors}, sample: ${known_clickbait_nodes}`);
+            //console.log(`url: ${url}, adapter_selectors: ${adapter_selectors}, sample: ${known_clickbait_nodes}`);
             const clickbait_set = new Set(known_clickbait_nodes);
             //console.log(known_clickbait_nodes);
 
@@ -179,6 +179,10 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
 }
 
 // retrieve each page and prints its links, asynchronously
+let updates = setInterval(() => {
+    console.log(`Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
+}, 5000);
 Promise.all(createRequestPromise(input_file_lines)).then(() => {
+    clearInterval(updates);
     console.log(`Done. Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
 });
