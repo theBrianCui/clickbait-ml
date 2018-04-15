@@ -14,6 +14,12 @@ Usage: node scraper.js INPUTFILE ADAPTERS NORMAL UNKNOWN CLICKBAIT [recursion-de
 
 The final `recursion-depth` parameter accepts a number, though the default of `0` is recommended.
 
+**Example:**
+
+```
+node scraper.js sites.in adapters.json run/normal.out run/unknown.out run/clickbait.out 1 2> /dev/null
+```
+
 ## Developer Setup
 
 Start by installing the typescript compiler `tsc` globally. This only has to be performed once per machine.
