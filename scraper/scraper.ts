@@ -94,15 +94,15 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, clickbait_set: Set<HT
             continue;
         known_text[text_content_concat] = true;
 
-        /* if the anchor node belongs to the clickbait_set, it's clickbait */
-        if (clickbait_set.has(anchor_node)) {
-            CLICKBAIT.write(JSON.stringify(text_content) + "\n");
+        /* if it's less than or equal to 4 words, it's normal */
+        if (text_content_concat.split(" ").length <= 3) {
+            NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
         }
 
-        /* if it's less than or equal to 4 words, it's normal */
-        if (text_content_concat.split(" ").length <= 4) {
-            NORMAL.write(JSON.stringify(text_content) + "\n");
+        /* if the anchor node belongs to the clickbait_set, it's clickbait */
+        if (clickbait_set.has(anchor_node)) {
+            CLICKBAIT.write(JSON.stringify(text_content) + "\n");
             continue;
         }
 

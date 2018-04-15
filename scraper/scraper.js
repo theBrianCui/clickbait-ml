@@ -82,14 +82,14 @@ function simpleClassify(anchors, clickbait_set) {
         if (known_text[text_content_concat])
             continue;
         known_text[text_content_concat] = true;
+        /* if it's less than or equal to 4 words, it's normal */
+        if (text_content_concat.split(" ").length <= 3) {
+            NORMAL.write(JSON.stringify(text_content) + "\n");
+            continue;
+        }
         /* if the anchor node belongs to the clickbait_set, it's clickbait */
         if (clickbait_set.has(anchor_node)) {
             CLICKBAIT.write(JSON.stringify(text_content) + "\n");
-            continue;
-        }
-        /* if it's less than or equal to 4 words, it's normal */
-        if (text_content_concat.split(" ").length <= 4) {
-            NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
         }
         /* we don't know */
@@ -125,7 +125,7 @@ function createRequestPromise(urls, depth) {
                 //console.log(clickbait_nodes);
                 known_clickbait_nodes = known_clickbait_nodes.concat(clickbait_nodes);
             }
-            console.log("url: " + url + ", adapter_selectors: " + adapter_selectors + ", sample: " + known_clickbait_nodes);
+            //console.log(`url: ${url}, adapter_selectors: ${adapter_selectors}, sample: ${known_clickbait_nodes}`);
             var clickbait_set = new Set(known_clickbait_nodes);
             //console.log(known_clickbait_nodes);
             /* Classify and retrieve all the inner urls. */
@@ -159,6 +159,10 @@ function createRequestPromise(urls, depth) {
     return all_requests;
 }
 // retrieve each page and prints its links, asynchronously
+var updates = setInterval(function () {
+    console.log("Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
+}, 5000);
 Promise.all(createRequestPromise(input_file_lines)).then(function () {
+    clearInterval(updates);
     console.log("Done. Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
 });
