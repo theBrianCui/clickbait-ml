@@ -1,0 +1,10 @@
+[
+    {
+        "base": "https://news.clickhole.com/?startTime=",
+        "selectors": [".headline.entry-title.js_entry-title a"]
+    },
+    {
+        "base": "https://www.buzzfeed.com/us/feedpage/feed/search_buzzes?",
+        "selectors": [".link-gray"]
+    }
+]
