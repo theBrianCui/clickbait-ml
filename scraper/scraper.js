@@ -66,6 +66,21 @@ function validHyperlinkNode(node) {
 }
 /* Perform a simple classification. Return an array of absolute urls to traverse next. */
 function simpleClassify(anchors, clickbait_set) {
+    function isNormalText(text_content_concat) {
+        if (text_content_concat.split(" ").length <= 3)
+            return true;
+        var lowercase = text_content_concat.toLowerCase();
+        if (lowercase.indexOf("Share on") !== -1 || lowercase.indexOf("Share with") !== -1)
+            return true;
+        if (lowercase.indexOf("<img") === 0)
+            return true;
+        var SOCIAL_MEDIA = ['facebook', 'twitter', 'google+', 'google'];
+        for (var i = 0; i < SOCIAL_MEDIA.length; ++i) {
+            if (SOCIAL_MEDIA[i] === lowercase)
+                return true;
+        }
+        return false;
+    }
     var inner_urls = [];
     for (var i = 0; i < anchors.length; ++i) {
         var anchor_node = anchors[i];
@@ -75,14 +90,14 @@ function simpleClassify(anchors, clickbait_set) {
             : "https://" + dest_link;
         // skip links that have no text content
         var text_content = findTextNodes(anchor_node);
-        var text_content_concat = text_content.join("").trim();
+        var text_content_concat = text_content.join(" ").trim();
         if (text_content.length === 0 || text_content_concat === "")
             continue;
         /* ignore links that we've seen already */
         if (known_text[text_content_concat])
             continue;
         known_text[text_content_concat] = true;
-        /* if it's less than or equal to 4 words, it's normal */
+        /* if it's less than or equal to 3 words, it's normal */
         if (text_content_concat.split(" ").length <= 3) {
             NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
