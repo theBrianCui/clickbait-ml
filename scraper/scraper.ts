@@ -5,12 +5,13 @@ import request = require("request-promise");
 import Promise = require("bluebird");
 const ABSOLUTE_URL_REGEX: RegExp = new RegExp('^(?:[a-z]+:)?//', 'i');
 
-/* The three possible classifications */
-enum Class {
-    NORMAL = 1,
-    UNKNOWN = 2,
-    CLICKBAIT = 3
-};
+interface Adapter {
+    base: string,
+    selectors: {
+        clickbait: Array<string>,
+        normal: Array<string>
+    }
+}
 
 const args: Array<string> = process.argv.slice(2);
 if (!args[0] || !args[2] || !args[3] || !args[4]) {
@@ -21,19 +22,28 @@ if (!args[0] || !args[2] || !args[3] || !args[4]) {
 
 /* Read arguments, including filenames of input and output files. Output files are write streams. */
 const INPUT: string = args[0];
-const ADAPTERS: Array<Object> = require("./" + args[1]);
-const ADAPTERS_URLS: Array<string> = ADAPTERS.map((adapter) => { return adapter["base"]; });
-const ADAPTERS_SELECTORS: Array<Array<string>> = ADAPTERS.map((adapter) => { return adapter["selectors"]; });
+
+/* Adapters are specific CSS selectors for specific base URLs. They let us manually indicate specific
+    anchor tags as being clickbait or normal. */
+const ADAPTERS: Array<Adapter> = require("./" + args[1]);
+const ADAPTER_URLS: Array<string> = ADAPTERS.map((adapter) => { return adapter.base; });
+const ADAPTER_SELECTORS = ADAPTERS.map((adapter) => { return adapter.selectors; });
+
+/* Maximum recursion depth. Defaults to 0. */
 const MAX_RECURSION_DEPTH: number = parseInt(args[5], 10) || 0;
 
-function getKnownAdapter(url: string): Array<string> {
-    for (let i = 0; i < ADAPTERS_URLS.length; ++i) {
-        const adapter = ADAPTERS_URLS[i];
-        if (url.indexOf(adapter) !== -1) {
-            return ADAPTERS_SELECTORS[i];
+function getKnownAdapter(url: string): { clickbait: Array<string>, normal: Array<string> } {
+    for (let i = 0; i < ADAPTER_URLS.length; ++i) {
+        const adapter_url = ADAPTER_URLS[i];
+        if (url.indexOf(adapter_url) !== -1) {
+            return ADAPTER_SELECTORS[i];
         }
     }
-    return [];
+
+    return {
+        clickbait: [],
+        normal: []
+    }
 }
 
 const NORMAL: fs.WriteStream = fs.createWriteStream(args[2]);
@@ -73,20 +83,50 @@ function validHyperlinkNode(node: HTMLAnchorElement): boolean {
         dest_link.indexOf("about:") !== 0;
 }
 
+/* Retrieve a list of valid hyperlink nodes by selector. */
+function selectHyperlinkNodes(dom: JSDOM, selectors: Array<string>): Array<HTMLAnchorElement> {
+    let hyperlinks = [];
+    for (let i = 0; i < selectors.length; ++i) {
+        hyperlinks = hyperlinks.concat(
+            Array.from(dom.window.document.querySelectorAll(selectors[i])).filter(validHyperlinkNode));
+    }
+    return hyperlinks;
+}
+
 /* Perform a simple classification. Return an array of absolute urls to traverse next. */
-function simpleClassify(anchors: Array<HTMLAnchorElement>, clickbait_set: Set<HTMLAnchorElement>): Array<string> {
+function simpleClassify(anchors: Array<HTMLAnchorElement>,
+                        clickbait_set: Set<HTMLAnchorElement>,
+                        normal_set: Set<HTMLAnchorElement>): Array<string> {
+
+    function isNormalText(text_content_concat: string): boolean {
+        if (text_content_concat.split(" ").length <= 3) return true;
+        let lowercase = text_content_concat.toLowerCase();
+        if (lowercase.indexOf("Share on") !== -1 || lowercase.indexOf("Share with") !== -1)
+            return true;
+        if (lowercase.indexOf("<img") === 0)
+            return true;
+
+        const SOCIAL_MEDIA = ['facebook', 'twitter', 'google+', 'google'];
+        for (let i = 0; i < SOCIAL_MEDIA.length; ++i) {
+            if (SOCIAL_MEDIA[i] === lowercase)
+                return true;
+        }
+
+        return false;
+    }
+
     let inner_urls: Array<string> = [];
     for (let i = 0; i < anchors.length; ++i) {
         let anchor_node = anchors[i];
         let dest_link = anchor_node.href.trim();
 
         /* Relative URLs should be converted to absolute URLs as the canonical form. */
-        let absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link 
+        let absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
                             : "https://" + dest_link;
 
         // skip links that have no text content
         let text_content: Array<string> = findTextNodes(anchor_node);
-        let text_content_concat = text_content.join("").trim();
+        let text_content_concat = text_content.join(" ").trim();
         if (text_content.length === 0 || text_content_concat === "") continue;
 
         /* ignore links that we've seen already */
@@ -94,8 +134,8 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, clickbait_set: Set<HT
             continue;
         known_text[text_content_concat] = true;
 
-        /* if it's less than or equal to 4 words, it's normal */
-        if (text_content_concat.split(" ").length <= 3) {
+        /* if it's less than or equal to 3 words, it's normal */
+        if (normal_set.has(anchor_node) || text_content_concat.split(" ").length <= 3) {
             NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
         }
@@ -131,24 +171,19 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
 
         }).then((dom): Array<string> => {
             /* Get all the anchor tags and keep the valid hyperlinks. */
-            const anchor_nodes: Array<HTMLAnchorElement> = Array.from(dom.window.document.querySelectorAll('a'))
-                .filter(validHyperlinkNode);
+            const anchor_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, ['a']);
             if (anchor_nodes.length === 0) return [];
 
-            /* Run all adapter queries to produce a set of anchor tags with known clickbait titles. */
-            let known_clickbait_nodes: Array<HTMLAnchorElement> = [];
-            for (let k = 0; k < adapter_selectors.length; ++k) {
-                let clickbait_nodes = Array.from(dom.window.document.querySelectorAll(adapter_selectors[k])) as Array<HTMLAnchorElement>;
-                //console.log(clickbait_nodes);
-                known_clickbait_nodes = known_clickbait_nodes.concat(clickbait_nodes);
-            }
-
-            //console.log(`url: ${url}, adapter_selectors: ${adapter_selectors}, sample: ${known_clickbait_nodes}`);
+            /* Run clickbait adapter queries to produce a set of anchor tags with known clickbait titles. */
+            let known_clickbait_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, adapter_selectors.clickbait);
             const clickbait_set = new Set(known_clickbait_nodes);
-            //console.log(known_clickbait_nodes);
+
+            /* Run normal adapter queries to produce a set of anchor tags with known normal titles. */
+            let known_normal_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, adapter_selectors.normal);
+            const normal_set = new Set(known_normal_nodes);
 
             /* Classify and retrieve all the inner urls. */
-            let inner_urls = simpleClassify(anchor_nodes, clickbait_set);
+            let inner_urls = simpleClassify(anchor_nodes, clickbait_set, normal_set);
 
             /* only visit new URLs we haven't seen before */
             if (depth < MAX_RECURSION_DEPTH) {
@@ -181,7 +216,7 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
 // retrieve each page and prints its links, asynchronously
 let updates = setInterval(() => {
     console.log(`Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
-}, 5000);
+}, 2000);
 Promise.all(createRequestPromise(input_file_lines)).then(() => {
     clearInterval(updates);
     console.log(`Done. Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);

@@ -1,10 +1,44 @@
 [
     {
         "base": "https://news.clickhole.com/?startTime=",
-        "selectors": [".headline.entry-title.js_entry-title a"]
+        "selectors": {
+            "clickbait": [".headline.entry-title.js_entry-title a"],
+            "normal": []
+        }
     },
     {
         "base": "https://www.buzzfeed.com/us/feedpage/feed/search_buzzes?",
-        "selectors": [".link-gray"]
+        "selectors": {
+            "clickbait": [".link-gray"],
+            "normal": []
+        }
+    },
+    {
+        "base": "https://www.reddit.com/r/news",
+        "selectors": {
+            "clickbait": [],
+            "normal": [".title a"]
+        }
+    },
+    {
+        "base": "https://www.reddit.com/r/worldnews",
+        "selectors": {
+            "clickbait": [],
+            "normal": [".title a"]
+        }
+    },
+    {
+        "base": "https://www.aljazeera.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": ["a"]
+        }
+    },
+    {
+        "base": "https://en.wikinews.org/wiki/Main_Page",
+        "selectors": {
+            "clickait": [],
+            "normal": ["a"]
+        }
     }
 ]

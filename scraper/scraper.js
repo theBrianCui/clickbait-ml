@@ -6,14 +6,6 @@ var jsdom_1 = require("jsdom");
 var request = require("request-promise");
 var Promise = require("bluebird");
 var ABSOLUTE_URL_REGEX = new RegExp('^(?:[a-z]+:)?//', 'i');
-/* The three possible classifications */
-var Class;
-(function (Class) {
-    Class[Class["NORMAL"] = 1] = "NORMAL";
-    Class[Class["UNKNOWN"] = 2] = "UNKNOWN";
-    Class[Class["CLICKBAIT"] = 3] = "CLICKBAIT";
-})(Class || (Class = {}));
-;
 var args = process.argv.slice(2);
 if (!args[0] || !args[2] || !args[3] || !args[4]) {
     console.log("Usage: node scraper.js INPUTFILE ADAPTERS");
@@ -22,18 +14,24 @@ if (!args[0] || !args[2] || !args[3] || !args[4]) {
 }
 /* Read arguments, including filenames of input and output files. Output files are write streams. */
 var INPUT = args[0];
+/* Adapters are specific CSS selectors for specific base URLs. They let us manually indicate specific
+    anchor tags as being clickbait or normal. */
 var ADAPTERS = require("./" + args[1]);
-var ADAPTERS_URLS = ADAPTERS.map(function (adapter) { return adapter["base"]; });
-var ADAPTERS_SELECTORS = ADAPTERS.map(function (adapter) { return adapter["selectors"]; });
+var ADAPTER_URLS = ADAPTERS.map(function (adapter) { return adapter.base; });
+var ADAPTER_SELECTORS = ADAPTERS.map(function (adapter) { return adapter.selectors; });
+/* Maximum recursion depth. Defaults to 0. */
 var MAX_RECURSION_DEPTH = parseInt(args[5], 10) || 0;
 function getKnownAdapter(url) {
-    for (var i = 0; i < ADAPTERS_URLS.length; ++i) {
-        var adapter = ADAPTERS_URLS[i];
-        if (url.indexOf(adapter) !== -1) {
-            return ADAPTERS_SELECTORS[i];
+    for (var i = 0; i < ADAPTER_URLS.length; ++i) {
+        var adapter_url = ADAPTER_URLS[i];
+        if (url.indexOf(adapter_url) !== -1) {
+            return ADAPTER_SELECTORS[i];
         }
     }
-    return [];
+    return {
+        clickbait: [],
+        normal: []
+    };
 }
 var NORMAL = fs.createWriteStream(args[2]);
 var UNKNOWN = fs.createWriteStream(args[3]);
@@ -64,8 +62,16 @@ function validHyperlinkNode(node) {
         dest_link.indexOf("javascript:") !== 0 &&
         dest_link.indexOf("about:") !== 0;
 }
+/* Retrieve a list of valid hyperlink nodes by selector. */
+function selectHyperlinkNodes(dom, selectors) {
+    var hyperlinks = [];
+    for (var i = 0; i < selectors.length; ++i) {
+        hyperlinks = hyperlinks.concat(Array.from(dom.window.document.querySelectorAll(selectors[i])).filter(validHyperlinkNode));
+    }
+    return hyperlinks;
+}
 /* Perform a simple classification. Return an array of absolute urls to traverse next. */
-function simpleClassify(anchors, clickbait_set) {
+function simpleClassify(anchors, clickbait_set, normal_set) {
     function isNormalText(text_content_concat) {
         if (text_content_concat.split(" ").length <= 3)
             return true;
@@ -98,7 +104,7 @@ function simpleClassify(anchors, clickbait_set) {
             continue;
         known_text[text_content_concat] = true;
         /* if it's less than or equal to 3 words, it's normal */
-        if (text_content_concat.split(" ").length <= 3) {
+        if (normal_set.has(anchor_node) || text_content_concat.split(" ").length <= 3) {
             NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
         }
@@ -129,22 +135,17 @@ function createRequestPromise(urls, depth) {
             return new jsdom_1.JSDOM("");
         }).then(function (dom) {
             /* Get all the anchor tags and keep the valid hyperlinks. */
-            var anchor_nodes = Array.from(dom.window.document.querySelectorAll('a'))
-                .filter(validHyperlinkNode);
+            var anchor_nodes = selectHyperlinkNodes(dom, ['a']);
             if (anchor_nodes.length === 0)
                 return [];
-            /* Run all adapter queries to produce a set of anchor tags with known clickbait titles. */
-            var known_clickbait_nodes = [];
-            for (var k = 0; k < adapter_selectors.length; ++k) {
-                var clickbait_nodes = Array.from(dom.window.document.querySelectorAll(adapter_selectors[k]));
-                //console.log(clickbait_nodes);
-                known_clickbait_nodes = known_clickbait_nodes.concat(clickbait_nodes);
-            }
-            //console.log(`url: ${url}, adapter_selectors: ${adapter_selectors}, sample: ${known_clickbait_nodes}`);
+            /* Run clickbait adapter queries to produce a set of anchor tags with known clickbait titles. */
+            var known_clickbait_nodes = selectHyperlinkNodes(dom, adapter_selectors.clickbait);
             var clickbait_set = new Set(known_clickbait_nodes);
-            //console.log(known_clickbait_nodes);
+            /* Run normal adapter queries to produce a set of anchor tags with known normal titles. */
+            var known_normal_nodes = selectHyperlinkNodes(dom, adapter_selectors.normal);
+            var normal_set = new Set(known_normal_nodes);
             /* Classify and retrieve all the inner urls. */
-            var inner_urls = simpleClassify(anchor_nodes, clickbait_set);
+            var inner_urls = simpleClassify(anchor_nodes, clickbait_set, normal_set);
             /* only visit new URLs we haven't seen before */
             if (depth < MAX_RECURSION_DEPTH) {
                 inner_urls.filter(function (url) {
@@ -176,7 +177,7 @@ function createRequestPromise(urls, depth) {
 // retrieve each page and prints its links, asynchronously
 var updates = setInterval(function () {
     console.log("Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
-}, 5000);
+}, 2000);
 Promise.all(createRequestPromise(input_file_lines)).then(function () {
     clearInterval(updates);
     console.log("Done. Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
