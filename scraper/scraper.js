@@ -24,9 +24,13 @@ var MAX_RECURSION_DEPTH = parseInt(args[5], 10) || 0;
 function getKnownAdapter(url) {
     for (var i = 0; i < ADAPTER_URLS.length; ++i) {
         var adapter_url = ADAPTER_URLS[i];
-        if (url.indexOf(adapter_url) !== -1) {
-            return ADAPTER_SELECTORS[i];
-        }
+        if (url.indexOf(adapter_url) === -1)
+            continue;
+        if (ADAPTER_SELECTORS[i].clickbait)
+            ADAPTER_SELECTORS[i].clickbait = [];
+        if (ADAPTER_SELECTORS[i].normal)
+            ADAPTER_SELECTORS[i].normal = [];
+        return ADAPTER_SELECTORS[i];
     }
     return {
         clickbait: [],
@@ -127,7 +131,10 @@ function createRequestPromise(urls, depth) {
     var _loop_1 = function (i) {
         var url = urls[i];
         var adapter_selectors = getKnownAdapter(url);
-        var req = request(url).then(function (res) {
+        var req = request({
+            url: url,
+            timeout: 10000
+        }).then(function (res) {
             // render the HTML, then retrieve all the anchor tags
             return new jsdom_1.JSDOM(res);
         })["catch"](function (e) {
@@ -166,6 +173,11 @@ function createRequestPromise(urls, depth) {
             else {
                 return [];
             }
+        })["catch"](function (e) {
+            console.log("Something went wrong with " + url);
+            console.log(e);
+        }).then(function () {
+            return [];
         });
         all_requests.push(req);
     };
@@ -174,11 +186,26 @@ function createRequestPromise(urls, depth) {
     }
     return all_requests;
 }
+var all = createRequestPromise(input_file_lines);
+var resolved = 0;
+for (var i = 0; i < all.length; ++i) {
+    all[i].then(function () {
+        ++resolved;
+    });
+}
 // retrieve each page and prints its links, asynchronously
 var updates = setInterval(function () {
-    console.log("Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
+    console.log("Traversed " + resolved + " / " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
+    if (resolved > all.length - 10) {
+        console.log("Inspecting for a stuck page.");
+        for (var i = 0; i < all.length; ++i) {
+            if (!all[i].isFulfilled()) {
+                console.log("Page is stuck: " + input_file_lines[i]);
+            }
+        }
+    }
 }, 2000);
-Promise.all(createRequestPromise(input_file_lines)).then(function () {
+Promise.all(all).then(function () {
     clearInterval(updates);
-    console.log("Done. Traversed " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
+    console.log("Done. Traversed " + resolved + " / " + Object.keys(visited_url_set).length + " URLs and processed " + Object.keys(known_text).length + " anchor tags.");
 });

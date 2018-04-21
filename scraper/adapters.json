@@ -2,14 +2,18 @@
     {
         "base": "https://news.clickhole.com/?startTime=",
         "selectors": {
-            "clickbait": [".headline.entry-title.js_entry-title a"],
+            "clickbait": [
+                ".headline.entry-title.js_entry-title a"
+            ],
             "normal": []
         }
     },
     {
         "base": "https://www.buzzfeed.com/us/feedpage/feed/search_buzzes?",
         "selectors": {
-            "clickbait": [".link-gray"],
+            "clickbait": [
+                ".link-gray"
+            ],
             "normal": []
         }
     },
@@ -17,28 +21,144 @@
         "base": "https://www.reddit.com/r/news",
         "selectors": {
             "clickbait": [],
-            "normal": [".title a"]
+            "normal": [
+                ".title a"
+            ]
         }
     },
     {
         "base": "https://www.reddit.com/r/worldnews",
         "selectors": {
             "clickbait": [],
-            "normal": [".title a"]
+            "normal": [
+                ".title a"
+            ]
         }
     },
     {
         "base": "https://www.aljazeera.com",
         "selectors": {
             "clickbait": [],
-            "normal": ["a"]
+            "normal": [
+                "a"
+            ]
         }
     },
     {
         "base": "https://en.wikinews.org/wiki/Main_Page",
         "selectors": {
-            "clickait": [],
-            "normal": ["a"]
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.cs.utexas.edu",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.cs.utexas.edu",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.w3.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.github.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.mozilla.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.creativecommons.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.dropbox.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.amazonaws.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.wikimedia.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.apache.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.nasa.gov",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://en.wikinews.org/wiki/Main_Page",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
         }
     }
 ]

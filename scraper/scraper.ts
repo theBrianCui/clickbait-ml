@@ -32,12 +32,18 @@ const ADAPTER_SELECTORS = ADAPTERS.map((adapter) => { return adapter.selectors; 
 /* Maximum recursion depth. Defaults to 0. */
 const MAX_RECURSION_DEPTH: number = parseInt(args[5], 10) || 0;
 
-function getKnownAdapter(url: string): { clickbait: Array<string>, normal: Array<string> } {
+function getKnownAdapter(url: string): Adapter["selectors"] {
     for (let i = 0; i < ADAPTER_URLS.length; ++i) {
         const adapter_url = ADAPTER_URLS[i];
-        if (url.indexOf(adapter_url) !== -1) {
-            return ADAPTER_SELECTORS[i];
-        }
+        if (url.indexOf(adapter_url) === -1)
+            continue;
+
+        if (ADAPTER_SELECTORS[i].clickbait)
+            ADAPTER_SELECTORS[i].clickbait = [];
+        if (ADAPTER_SELECTORS[i].normal)
+            ADAPTER_SELECTORS[i].normal = [];
+
+        return ADAPTER_SELECTORS[i];
     }
 
     return {
@@ -161,7 +167,10 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
     for (let i = 0; i < urls.length; ++i) {
         let url = urls[i];
         let adapter_selectors = getKnownAdapter(url);
-        let req: Promise<any> = request(url).then((res) => {
+        let req: Promise<any> = request({
+                url: url,
+                timeout: 10000,
+            }).then((res) => {
             // render the HTML, then retrieve all the anchor tags
             return new JSDOM(res);
 
@@ -205,7 +214,12 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
             } else {
                 return [];
             }
-        });
+        }).catch((e) => {
+            console.log("Something went wrong with " + url);
+            console.log(e);
+        }).then(() => {
+            return [];
+        })
 
         all_requests.push(req);
     }
@@ -213,11 +227,31 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
     return all_requests;
 }
 
+
+let all = createRequestPromise(input_file_lines);
+let resolved = 0;
+for (let i = 0; i < all.length; ++i) {
+    all[i].then(() => {
+        ++resolved;
+    });
+}
+
 // retrieve each page and prints its links, asynchronously
 let updates = setInterval(() => {
-    console.log(`Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
+    console.log(`Traversed ${resolved} / ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
+    if (resolved > all.length - 10) {
+
+        console.log("Inspecting for a stuck page.");
+        for (let i = 0; i < all.length; ++i) {
+            if (!all[i].isFulfilled()) {
+                console.log("Page is stuck: " + input_file_lines[i]);
+            }
+        }
+    }
+
 }, 2000);
-Promise.all(createRequestPromise(input_file_lines)).then(() => {
+
+Promise.all(all).then(() => {
     clearInterval(updates);
-    console.log(`Done. Traversed ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
+    console.log(`Done. Traversed ${resolved} / ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
 });
