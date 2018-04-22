@@ -56,13 +56,13 @@ const NORMAL: fs.WriteStream = fs.createWriteStream(args[2]);
 const UNKNOWN: fs.WriteStream = fs.createWriteStream(args[3]);
 const CLICKBAIT: fs.WriteStream = fs.createWriteStream(args[4]);
 
-var visited_url_set = new Set();
+var known_urls = new Set();
 var known_text = new Set();
 var loaded = 0;
 
 // print the state of the running program
 function printState() {
-    console.log(`Traversed ${loaded} / ${visited_url_set.size} URLs and processed ${known_text.size} anchor tags.`);
+    console.log(`Traversed ${loaded} / ${known_urls.size} URLs and processed ${known_text.size} anchor tags.`);
 }
 
 /* Read each URL in the input file. */
@@ -72,7 +72,7 @@ const input_file_lines = fs.readFileSync(INPUT, "utf8")
     .filter((str: string) => { return str !== "" });
 
 input_file_lines.forEach((url) => {
-    visited_url_set.add(url);
+    known_urls.add(url);
 });
 
 /* Retrieve the inner textNodes of a given HTMLElement.
@@ -106,7 +106,7 @@ function selectHyperlinkNodes(dom: JSDOM, selectors: Array<string>): Array<HTMLA
 }
 
 /* Perform a simple classification. Return an array of absolute urls to traverse next. */
-function simpleClassify(anchors: Array<HTMLAnchorElement>,
+function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
                         clickbait_set: Set<HTMLAnchorElement>,
                         normal_set: Set<HTMLAnchorElement>): Array<string> {
 
@@ -134,7 +134,7 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>,
 
         /* Relative URLs should be converted to absolute URLs as the canonical form. */
         let absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
-                            : "https://" + dest_link;
+                            : base_url + dest_link;
         inner_urls.push(absolute_url);
 
         // skip links that have no text content
@@ -173,16 +173,25 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
 
     for (let i = 0; i < urls.length; ++i) {
         let url = urls[i];
+
+        if (!known_urls.has(url)) {
+            console.log("FATAL: known_urls did not contain " + url);
+            process.exit(1);
+        }
+
         let adapter_selectors = getKnownAdapter(url);
         let req: Promise<any> = request({
                 url: url,
                 timeout: 15000,
+                headers: {
+                    'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
+                }
         }).then((res) => {
             // render the HTML, then retrieve all the anchor tags
             return new JSDOM(res);
 
         }).catch((e) => {
-            // if render failed, just render a blank page.
+            // if render or request failed, just render a blank page.
             return new JSDOM("");
 
         }).then((dom): Promise<any> => {
@@ -190,6 +199,8 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
 
             /* Get all the anchor tags and keep the valid hyperlinks. */
             const anchor_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, ['a']);
+            const anchor_nodes_manual: Array<HTMLAnchorElement> = Array.from(dom.window.document.querySelectorAll('a'));
+
             if (anchor_nodes.length === 0) return Promise.resolve([]);
 
             /* Run clickbait adapter queries to produce a set of anchor tags with known clickbait titles. */
@@ -201,26 +212,29 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
             const normal_set = new Set(known_normal_nodes);
 
             /* Classify and retrieve all the inner urls. */
-            let inner_urls = simpleClassify(anchor_nodes, clickbait_set, normal_set);
+            let inner_urls = simpleClassify(anchor_nodes, url, clickbait_set, normal_set);
+            let next_urls = [];
 
             /* only visit new URLs we haven't seen before */
             if (depth < MAX_RECURSION_DEPTH) {
-                inner_urls.filter((inner_url) => {
-                    return !visited_url_set.has(inner_url);
-                }).forEach((inner_url) => {
-                    visited_url_set.add(inner_url);
-                });
-            } else {
-                inner_urls = [];
+                for (let x = 0; x < inner_urls.length; ++x) {
+                    let next_url = inner_urls[x];
+                    console.log(`Checking if known_urls has ${next_url}: ${known_urls.has(next_url)}`)
+                    if (!known_urls.has(next_url)) {
+                        known_urls.add(next_url);
+                        next_urls.push(next_url);
+                    }
+                }
             }
 
-            visited_url_set.add(url);
+            console.log(`Found ${anchor_nodes.length} anchors on ${url}, simpleClassify returned ${inner_urls.length}, will traverse next ${next_urls.length}`);
+
             if (loaded % 20 === 0)
                 printState();
 
             /* Recursively search children pages with depth + 1 */
-            if (inner_urls.length > 0) {
-                return Promise.all(createRequestPromise(inner_urls, depth + 1));
+            if (next_urls.length > 0) {
+                return Promise.all(createRequestPromise(next_urls, depth + 1));
             } else {
                 return Promise.resolve([]);
             }

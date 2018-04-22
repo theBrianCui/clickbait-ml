@@ -40,12 +40,12 @@ function getKnownAdapter(url) {
 var NORMAL = fs.createWriteStream(args[2]);
 var UNKNOWN = fs.createWriteStream(args[3]);
 var CLICKBAIT = fs.createWriteStream(args[4]);
-var visited_url_set = new Set();
+var known_urls = new Set();
 var known_text = new Set();
 var loaded = 0;
 // print the state of the running program
 function printState() {
-    console.log("Traversed " + loaded + " / " + visited_url_set.size + " URLs and processed " + known_text.size + " anchor tags.");
+    console.log("Traversed " + loaded + " / " + known_urls.size + " URLs and processed " + known_text.size + " anchor tags.");
 }
 /* Read each URL in the input file. */
 var input_file_lines = fs.readFileSync(INPUT, "utf8")
@@ -53,7 +53,7 @@ var input_file_lines = fs.readFileSync(INPUT, "utf8")
     .map(function (str) { return str.trim(); })
     .filter(function (str) { return str !== ""; });
 input_file_lines.forEach(function (url) {
-    visited_url_set.add(url);
+    known_urls.add(url);
 });
 /* Retrieve the inner textNodes of a given HTMLElement.
     The .textContent property is inherently recursive, but the results are concatenated.
@@ -80,7 +80,7 @@ function selectHyperlinkNodes(dom, selectors) {
     return hyperlinks;
 }
 /* Perform a simple classification. Return an array of absolute urls to traverse next. */
-function simpleClassify(anchors, clickbait_set, normal_set) {
+function simpleClassify(anchors, base_url, clickbait_set, normal_set) {
     function isNormalText(text_content_concat) {
         if (text_content_concat.split(" ").length <= 3)
             return true;
@@ -102,7 +102,7 @@ function simpleClassify(anchors, clickbait_set, normal_set) {
         var dest_link = anchor_node.href.trim();
         /* Relative URLs should be converted to absolute URLs as the canonical form. */
         var absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
-            : "https://" + dest_link;
+            : base_url + dest_link;
         inner_urls.push(absolute_url);
         // skip links that have no text content
         var text_content = findTextNodes(anchor_node);
@@ -134,20 +134,28 @@ function createRequestPromise(urls, depth) {
     var all_requests = [];
     var _loop_1 = function (i) {
         var url = urls[i];
+        if (!known_urls.has(url)) {
+            console.log("FATAL: known_urls did not contain " + url);
+            process.exit(1);
+        }
         var adapter_selectors = getKnownAdapter(url);
         var req = request({
             url: url,
-            timeout: 15000
+            timeout: 15000,
+            headers: {
+                'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
+            }
         }).then(function (res) {
             // render the HTML, then retrieve all the anchor tags
             return new jsdom_1.JSDOM(res);
         })["catch"](function (e) {
-            // if render failed, just render a blank page.
+            // if render or request failed, just render a blank page.
             return new jsdom_1.JSDOM("");
         }).then(function (dom) {
             loaded++;
             /* Get all the anchor tags and keep the valid hyperlinks. */
             var anchor_nodes = selectHyperlinkNodes(dom, ['a']);
+            var anchor_nodes_manual = Array.from(dom.window.document.querySelectorAll('a'));
             if (anchor_nodes.length === 0)
                 return Promise.resolve([]);
             /* Run clickbait adapter queries to produce a set of anchor tags with known clickbait titles. */
@@ -157,24 +165,25 @@ function createRequestPromise(urls, depth) {
             var known_normal_nodes = selectHyperlinkNodes(dom, adapter_selectors.normal);
             var normal_set = new Set(known_normal_nodes);
             /* Classify and retrieve all the inner urls. */
-            var inner_urls = simpleClassify(anchor_nodes, clickbait_set, normal_set);
+            var inner_urls = simpleClassify(anchor_nodes, url, clickbait_set, normal_set);
+            var next_urls = [];
             /* only visit new URLs we haven't seen before */
             if (depth < MAX_RECURSION_DEPTH) {
-                inner_urls.filter(function (inner_url) {
-                    return !visited_url_set.has(inner_url);
-                }).forEach(function (inner_url) {
-                    visited_url_set.add(inner_url);
-                });
+                for (var x = 0; x < inner_urls.length; ++x) {
+                    var next_url = inner_urls[x];
+                    console.log("Checking if known_urls has " + next_url + ": " + known_urls.has(next_url));
+                    if (!known_urls.has(next_url)) {
+                        known_urls.add(next_url);
+                        next_urls.push(next_url);
+                    }
+                }
             }
-            else {
-                inner_urls = [];
-            }
-            visited_url_set.add(url);
+            console.log("Found " + anchor_nodes.length + " anchors on " + url + ", simpleClassify returned " + inner_urls.length + ", will traverse next " + next_urls.length);
             if (loaded % 20 === 0)
                 printState();
             /* Recursively search children pages with depth + 1 */
-            if (inner_urls.length > 0) {
-                return Promise.all(createRequestPromise(inner_urls, depth + 1));
+            if (next_urls.length > 0) {
+                return Promise.all(createRequestPromise(next_urls, depth + 1));
             }
             else {
                 return Promise.resolve([]);
