@@ -52,17 +52,40 @@ function getKnownAdapter(url: string): Adapter["selectors"] {
     }
 }
 
-const NORMAL: fs.WriteStream = fs.createWriteStream(args[2]);
-const UNKNOWN: fs.WriteStream = fs.createWriteStream(args[3]);
-const CLICKBAIT: fs.WriteStream = fs.createWriteStream(args[4]);
+var known_urls_set = new Set();
+var known_text_set = new Set();
 
-var known_urls = new Set();
-var known_text = new Set();
+/* Load classified texts and urls into memory. This way, it doesn't reclassify the same text again. */
+(function() {
+    try {
+        let normal_known: Array<string> = fs.readFileSync(args[2], "utf8").split("\n").filter((text) => text !== "");
+        for (let text in normal_known) {
+            known_text_set.add(text);
+        }
+
+        let unknown_known: Array<string> = fs.readFileSync(args[3], "utf8").split("\n").filter((text) => text !== "");
+        for (let text in unknown_known) {
+            known_text_set.add(text);
+        }
+
+        let clickbait_known: Array<string> = fs.readFileSync(args[4], "utf8").split("\n").filter((text) => text !== "");
+        for (let text in clickbait_known) {
+            known_text_set.add(text);
+        }
+    } catch (e) {
+        console.log("Output files do not exist, ignoring contents.");
+    }
+})();
+
 var loaded = 0;
+
+const NORMAL: fs.WriteStream = fs.createWriteStream(args[2], {flags:'a'});
+const UNKNOWN: fs.WriteStream = fs.createWriteStream(args[3], {flags:'a'});
+const CLICKBAIT: fs.WriteStream = fs.createWriteStream(args[4], {flags:'a'});
 
 // print the state of the running program
 function printState() {
-    console.log(`Traversed ${loaded} / ${known_urls.size} URLs and processed ${known_text.size} anchor tags.`);
+    console.log(`Traversed ${loaded} / ${known_urls_set.size} URLs and processed ${known_text_set.size} anchor tags.`);
 }
 
 /* Read each URL in the input file. */
@@ -72,7 +95,7 @@ const input_file_lines = fs.readFileSync(INPUT, "utf8")
     .filter((str: string) => { return str !== "" });
 
 input_file_lines.forEach((url) => {
-    known_urls.add(url);
+    known_urls_set.add(url);
 });
 
 /* Retrieve the inner textNodes of a given HTMLElement.
@@ -113,10 +136,14 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
     function isNormalText(text_content_concat: string): boolean {
         if (text_content_concat.split(" ").length <= 3) return true;
         let lowercase = text_content_concat.toLowerCase();
-        if (lowercase.indexOf("Share on") !== -1 || lowercase.indexOf("Share with") !== -1)
-            return true;
-        if (lowercase.indexOf("<img") === 0)
-            return true;
+
+        const normal_contents = ["share on", "share with", "<img", "real estate", 
+            "on twitter", "on instagram", "on facebook", "on google+", "hotels near", "out of 5 stars",
+            "camera & photo", "food & beverage", "fitness & running", "national park"];
+        for (let content in normal_contents) {
+            if (lowercase.indexOf(content) !== -1)
+                return true;
+        }
 
         const SOCIAL_MEDIA = ['facebook', 'twitter', 'google+', 'google'];
         for (let i = 0; i < SOCIAL_MEDIA.length; ++i) {
@@ -149,10 +176,10 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
         if (text_content.length === 0 || text_content_concat === "") continue;
 
         /* ignore links that we've seen already */
-        if (known_text.has(text_content_concat))
+        if (known_text_set.has(text_content_concat))
             continue;
 
-        known_text.add(text_content_concat);
+        known_text_set.add(text_content_concat);
 
         /* if it's less than or equal to 3 words, it's normal */
         if (normal_set.has(anchor_node) || isNormalText(text_content_concat)) {
@@ -180,17 +207,18 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
     for (let i = 0; i < urls.length; ++i) {
         let url = urls[i];
 
-        if (!known_urls.has(url)) {
+        if (!known_urls_set.has(url)) {
             console.log("FATAL: known_urls did not contain " + url);
             process.exit(1);
         }
 
         let adapter_selectors = getKnownAdapter(url);
-        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls.size * 100)).then(() => request({
+        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 200)).then(() => request({
                 url: url,
                 headers: {
                     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
-                }
+                },
+                timeout: 15000
         })).then((res) => {
             // render the HTML, then retrieve all the anchor tags
             return new JSDOM(res);
@@ -226,8 +254,8 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
             if (depth < MAX_RECURSION_DEPTH) {
                 for (let x = 0; x < inner_urls.length; ++x) {
                     let next_url = inner_urls[x];
-                    if (!known_urls.has(next_url)) {
-                        known_urls.add(next_url);
+                    if (!known_urls_set.has(next_url)) {
+                        known_urls_set.add(next_url);
                         next_urls.push(next_url);
                     }
                 }

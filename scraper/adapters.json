@@ -135,6 +135,15 @@
         }
     },
     {
+        "base": "https://www.amazon.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
         "base": "https://www.wikimedia.org",
         "selectors": {
             "clickbait": [],
