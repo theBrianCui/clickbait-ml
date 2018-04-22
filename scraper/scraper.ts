@@ -135,6 +135,12 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
         /* Relative URLs should be converted to absolute URLs as the canonical form. */
         let absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
                             : base_url + dest_link;
+        if (absolute_url.indexOf("//") === 0){
+            absolute_url = absolute_url.substring(2);
+        }
+        if (absolute_url.indexOf("http") !== 0) {
+            absolute_url = "http://" + absolute_url;
+        }
         inner_urls.push(absolute_url);
 
         // skip links that have no text content
@@ -182,7 +188,6 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
         let adapter_selectors = getKnownAdapter(url);
         let req: Promise<any> = request({
                 url: url,
-                timeout: 15000,
                 headers: {
                     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
                 }
@@ -192,6 +197,8 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
 
         }).catch((e) => {
             // if render or request failed, just render a blank page.
+            console.log("An error occurred with " + url + ": " + e.toString().substring(0, 80));
+
             return new JSDOM("");
 
         }).then((dom): Promise<any> => {
@@ -219,16 +226,12 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
             if (depth < MAX_RECURSION_DEPTH) {
                 for (let x = 0; x < inner_urls.length; ++x) {
                     let next_url = inner_urls[x];
-                    console.log(`Checking if known_urls has ${next_url}: ${known_urls.has(next_url)}`)
                     if (!known_urls.has(next_url)) {
                         known_urls.add(next_url);
                         next_urls.push(next_url);
                     }
                 }
             }
-
-            console.log(`Found ${anchor_nodes.length} anchors on ${url}, simpleClassify returned ${inner_urls.length}, will traverse next ${next_urls.length}`);
-
             if (loaded % 20 === 0)
                 printState();
 
