@@ -38,9 +38,9 @@ function getKnownAdapter(url: string): Adapter["selectors"] {
         if (url.indexOf(adapter_url) === -1)
             continue;
 
-        if (ADAPTER_SELECTORS[i].clickbait)
+        if (!ADAPTER_SELECTORS[i].clickbait)
             ADAPTER_SELECTORS[i].clickbait = [];
-        if (ADAPTER_SELECTORS[i].normal)
+        if (!ADAPTER_SELECTORS[i].normal)
             ADAPTER_SELECTORS[i].normal = [];
 
         return ADAPTER_SELECTORS[i];
@@ -56,8 +56,14 @@ const NORMAL: fs.WriteStream = fs.createWriteStream(args[2]);
 const UNKNOWN: fs.WriteStream = fs.createWriteStream(args[3]);
 const CLICKBAIT: fs.WriteStream = fs.createWriteStream(args[4]);
 
-var visited_url_set = {};
-var known_text = {};
+var visited_url_set = new Set();
+var known_text = new Set();
+var loaded = 0;
+
+// print the state of the running program
+function printState() {
+    console.log(`Traversed ${loaded} / ${visited_url_set.size} URLs and processed ${known_text.size} anchor tags.`);
+}
 
 /* Read each URL in the input file. */
 const input_file_lines = fs.readFileSync(INPUT, "utf8")
@@ -66,7 +72,7 @@ const input_file_lines = fs.readFileSync(INPUT, "utf8")
     .filter((str: string) => { return str !== "" });
 
 input_file_lines.forEach((url) => {
-    visited_url_set[url] = true;
+    visited_url_set.add(url);
 });
 
 /* Retrieve the inner textNodes of a given HTMLElement.
@@ -129,6 +135,7 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>,
         /* Relative URLs should be converted to absolute URLs as the canonical form. */
         let absolute_url = ABSOLUTE_URL_REGEX.test(dest_link) ? dest_link
                             : "https://" + dest_link;
+        inner_urls.push(absolute_url);
 
         // skip links that have no text content
         let text_content: Array<string> = findTextNodes(anchor_node);
@@ -136,12 +143,13 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>,
         if (text_content.length === 0 || text_content_concat === "") continue;
 
         /* ignore links that we've seen already */
-        if (known_text[text_content_concat])
+        if (known_text.has(text_content_concat))
             continue;
-        known_text[text_content_concat] = true;
+
+        known_text.add(text_content_concat);
 
         /* if it's less than or equal to 3 words, it's normal */
-        if (normal_set.has(anchor_node) || text_content_concat.split(" ").length <= 3) {
+        if (normal_set.has(anchor_node) || isNormalText(text_content_concat)) {
             NORMAL.write(JSON.stringify(text_content) + "\n");
             continue;
         }
@@ -154,13 +162,12 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>,
 
         /* we don't know */
         UNKNOWN.write(JSON.stringify(text_content) + "\n");
-        inner_urls.push(absolute_url);
     }
 
     return inner_urls;
 }
 
-function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Promise<any>> {
+function createRequestPromise(urls: Array<string>, depth: number): Array<Promise<any>> {
     if (depth > MAX_RECURSION_DEPTH || urls.length === 0) return [];
     let all_requests: Array<Promise<any>> = [];
 
@@ -169,8 +176,8 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
         let adapter_selectors = getKnownAdapter(url);
         let req: Promise<any> = request({
                 url: url,
-                timeout: 10000,
-            }).then((res) => {
+                timeout: 15000,
+        }).then((res) => {
             // render the HTML, then retrieve all the anchor tags
             return new JSDOM(res);
 
@@ -178,10 +185,12 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
             // if render failed, just render a blank page.
             return new JSDOM("");
 
-        }).then((dom): Array<string> => {
+        }).then((dom): Promise<any> => {
+            loaded++;
+
             /* Get all the anchor tags and keep the valid hyperlinks. */
             const anchor_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, ['a']);
-            if (anchor_nodes.length === 0) return [];
+            if (anchor_nodes.length === 0) return Promise.resolve([]);
 
             /* Run clickbait adapter queries to produce a set of anchor tags with known clickbait titles. */
             let known_clickbait_nodes: Array<HTMLAnchorElement> = selectHyperlinkNodes(dom, adapter_selectors.clickbait);
@@ -196,30 +205,31 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
 
             /* only visit new URLs we haven't seen before */
             if (depth < MAX_RECURSION_DEPTH) {
-                inner_urls.filter((url) => {
-                    return !visited_url_set[url];
-                }).forEach((url) => {
-                    visited_url_set[url] = true;
+                inner_urls.filter((inner_url) => {
+                    return !visited_url_set.has(inner_url);
+                }).forEach((inner_url) => {
+                    visited_url_set.add(inner_url);
                 });
             } else {
                 inner_urls = [];
             }
 
-            return inner_urls;
+            visited_url_set.add(url);
+            if (loaded % 20 === 0)
+                printState();
 
-        }).then((inner_urls: Array<string>) => {
             /* Recursively search children pages with depth + 1 */
             if (inner_urls.length > 0) {
                 return Promise.all(createRequestPromise(inner_urls, depth + 1));
             } else {
-                return [];
+                return Promise.resolve([]);
             }
+
         }).catch((e) => {
-            console.log("Something went wrong with " + url);
-            console.log(e);
-        }).then(() => {
+            console.log(`Error: ${url} : ${e}`);
             return [];
-        })
+
+        });
 
         all_requests.push(req);
     }
@@ -227,31 +237,13 @@ function createRequestPromise(urls: Array<string>, depth: number = 0): Array<Pro
     return all_requests;
 }
 
-
-let all = createRequestPromise(input_file_lines);
-let resolved = 0;
-for (let i = 0; i < all.length; ++i) {
-    all[i].then(() => {
-        ++resolved;
-    });
-}
-
-// retrieve each page and prints its links, asynchronously
+let all = createRequestPromise(input_file_lines, 0);
 let updates = setInterval(() => {
-    console.log(`Traversed ${resolved} / ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
-    if (resolved > all.length - 10) {
-
-        console.log("Inspecting for a stuck page.");
-        for (let i = 0; i < all.length; ++i) {
-            if (!all[i].isFulfilled()) {
-                console.log("Page is stuck: " + input_file_lines[i]);
-            }
-        }
-    }
-
+    printState();
 }, 2000);
 
 Promise.all(all).then(() => {
     clearInterval(updates);
-    console.log(`Done. Traversed ${resolved} / ${Object.keys(visited_url_set).length} URLs and processed ${Object.keys(known_text).length} anchor tags.`);
+    printState();
+    console.log("Done.");
 });
