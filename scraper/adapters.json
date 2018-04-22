@@ -54,6 +54,15 @@
         }
     },
     {
+        "base": "https://en.wikipedia.org",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
         "base": "https://www.cs.utexas.edu",
         "selectors": {
             "clickbait": [],
