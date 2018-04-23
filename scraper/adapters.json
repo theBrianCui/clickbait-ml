@@ -36,16 +36,7 @@
         }
     },
     {
-        "base": "https://www.aljazeera.com",
-        "selectors": {
-            "clickbait": [],
-            "normal": [
-                "a"
-            ]
-        }
-    },
-    {
-        "base": "https://en.wikinews.org/wiki/Main_Page",
+        "base": "https://www.google.com",
         "selectors": {
             "clickbait": [],
             "normal": [
@@ -63,7 +54,223 @@
         }
     },
     {
-        "base": "https://www.cs.utexas.edu",
+        "base": "https://www.amazon.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.linkedin.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.ebay.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.bing.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.imgur.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.whatsapp.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.spotify.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.microsoft.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.wsj.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.utexas.edu",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.piazza.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.stackoverflow.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.paypal.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.live.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.indeed.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.zillow.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.chase.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.office.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.wellsfargo.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.att.net",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.nytimes.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.bankofamerica.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.intuit.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.theguardian.com",
+        "selectors": {
+            "clickbait": [],
+            "normal": [
+                "a"
+            ]
+        }
+    },
+    {
+        "base": "https://www.aljazeera.com",
         "selectors": {
             "clickbait": [],
             "normal": [
@@ -127,15 +334,6 @@
     },
     {
         "base": "https://www.amazonaws.com",
-        "selectors": {
-            "clickbait": [],
-            "normal": [
-                "a"
-            ]
-        }
-    },
-    {
-        "base": "https://www.amazon.com",
         "selectors": {
             "clickbait": [],
             "normal": [

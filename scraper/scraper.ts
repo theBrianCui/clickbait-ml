@@ -59,17 +59,17 @@ var known_text_set = new Set();
 (function() {
     try {
         let normal_known: Array<string> = fs.readFileSync(args[2], "utf8").split("\n").filter((text) => text !== "");
-        for (let text in normal_known) {
+        for (let text of normal_known) {
             known_text_set.add(text);
         }
 
         let unknown_known: Array<string> = fs.readFileSync(args[3], "utf8").split("\n").filter((text) => text !== "");
-        for (let text in unknown_known) {
+        for (let text of unknown_known) {
             known_text_set.add(text);
         }
 
         let clickbait_known: Array<string> = fs.readFileSync(args[4], "utf8").split("\n").filter((text) => text !== "");
-        for (let text in clickbait_known) {
+        for (let text of clickbait_known) {
             known_text_set.add(text);
         }
     } catch (e) {
@@ -97,6 +97,8 @@ const input_file_lines = fs.readFileSync(INPUT, "utf8")
 input_file_lines.forEach((url) => {
     known_urls_set.add(url);
 });
+
+console.log("Loaded URLs: " + JSON.stringify(input_file_lines.slice(0, 3)) + "...");
 
 /* Retrieve the inner textNodes of a given HTMLElement.
     The .textContent property is inherently recursive, but the results are concatenated.
@@ -137,10 +139,14 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
         if (text_content_concat.split(" ").length <= 3) return true;
         let lowercase = text_content_concat.toLowerCase();
 
+        // probably an xml tag
+        if (lowercase[0] === "<")
+            return true;
+
         const normal_contents = ["share on", "share with", "<img", "real estate", 
             "on twitter", "on instagram", "on facebook", "on google+", "hotels near", "out of 5 stars",
             "camera & photo", "food & beverage", "fitness & running", "national park"];
-        for (let content in normal_contents) {
+        for (let content of normal_contents) {
             if (lowercase.indexOf(content) !== -1)
                 return true;
         }
@@ -213,7 +219,7 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
         }
 
         let adapter_selectors = getKnownAdapter(url);
-        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 200)).then(() => request({
+        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 800)).then(() => request({
                 url: url,
                 headers: {
                     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"

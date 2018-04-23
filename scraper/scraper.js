@@ -43,15 +43,18 @@ var known_text_set = new Set();
 (function () {
     try {
         var normal_known = fs.readFileSync(args[2], "utf8").split("\n").filter(function (text) { return text !== ""; });
-        for (var text in normal_known) {
+        for (var _i = 0, normal_known_1 = normal_known; _i < normal_known_1.length; _i++) {
+            var text = normal_known_1[_i];
             known_text_set.add(text);
         }
         var unknown_known = fs.readFileSync(args[3], "utf8").split("\n").filter(function (text) { return text !== ""; });
-        for (var text in unknown_known) {
+        for (var _a = 0, unknown_known_1 = unknown_known; _a < unknown_known_1.length; _a++) {
+            var text = unknown_known_1[_a];
             known_text_set.add(text);
         }
         var clickbait_known = fs.readFileSync(args[4], "utf8").split("\n").filter(function (text) { return text !== ""; });
-        for (var text in clickbait_known) {
+        for (var _b = 0, clickbait_known_1 = clickbait_known; _b < clickbait_known_1.length; _b++) {
+            var text = clickbait_known_1[_b];
             known_text_set.add(text);
         }
     }
@@ -75,6 +78,7 @@ var input_file_lines = fs.readFileSync(INPUT, "utf8")
 input_file_lines.forEach(function (url) {
     known_urls_set.add(url);
 });
+console.log("Loaded URLs: " + JSON.stringify(input_file_lines.slice(0, 3)) + "...");
 /* Retrieve the inner textNodes of a given HTMLElement.
     The .textContent property is inherently recursive, but the results are concatenated.
     To retrieve the nodes separately, we split on \n, trim the results, and ignore blanks. */
@@ -108,7 +112,8 @@ function simpleClassify(anchors, base_url, clickbait_set, normal_set) {
         var normal_contents = ["share on", "share with", "<img", "real estate",
             "on twitter", "on instagram", "on facebook", "on google+", "hotels near", "out of 5 stars",
             "camera & photo", "food & beverage", "fitness & running", "national park"];
-        for (var content in normal_contents) {
+        for (var _i = 0, normal_contents_1 = normal_contents; _i < normal_contents_1.length; _i++) {
+            var content = normal_contents_1[_i];
             if (lowercase.indexOf(content) !== -1)
                 return true;
         }
@@ -168,7 +173,7 @@ function createRequestPromise(urls, depth) {
             process.exit(1);
         }
         var adapter_selectors = getKnownAdapter(url);
-        var req = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 200)).then(function () { return request({
+        var req = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 800)).then(function () { return request({
             url: url,
             headers: {
                 'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
