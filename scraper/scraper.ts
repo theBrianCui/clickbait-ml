@@ -60,17 +60,17 @@ var known_text_set = new Set();
     try {
         let normal_known: Array<string> = fs.readFileSync(args[2], "utf8").split("\n").filter((text) => text !== "");
         for (let text of normal_known) {
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
 
         let unknown_known: Array<string> = fs.readFileSync(args[3], "utf8").split("\n").filter((text) => text !== "");
         for (let text of unknown_known) {
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
 
         let clickbait_known: Array<string> = fs.readFileSync(args[4], "utf8").split("\n").filter((text) => text !== "");
         for (let text of clickbait_known) {
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
     } catch (e) {
         console.log("Output files do not exist, ignoring contents.");
@@ -143,7 +143,7 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
         if (lowercase[0] === "<")
             return true;
 
-        const normal_contents = ["share on", "share with", "<img", "real estate", 
+        const normal_contents = ["share on", "share with", "<img", "real estate",
             "on twitter", "on instagram", "on facebook", "on google+", "hotels near", "out of 5 stars",
             "camera & photo", "food & beverage", "fitness & running", "national park"];
         for (let content of normal_contents) {

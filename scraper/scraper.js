@@ -45,17 +45,17 @@ var known_text_set = new Set();
         var normal_known = fs.readFileSync(args[2], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _i = 0, normal_known_1 = normal_known; _i < normal_known_1.length; _i++) {
             var text = normal_known_1[_i];
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
         var unknown_known = fs.readFileSync(args[3], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _a = 0, unknown_known_1 = unknown_known; _a < unknown_known_1.length; _a++) {
             var text = unknown_known_1[_a];
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
         var clickbait_known = fs.readFileSync(args[4], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _b = 0, clickbait_known_1 = clickbait_known; _b < clickbait_known_1.length; _b++) {
             var text = clickbait_known_1[_b];
-            known_text_set.add(text);
+            known_text_set.add(JSON.parse(text).join(" "));
         }
     }
     catch (e) {
@@ -109,6 +109,9 @@ function simpleClassify(anchors, base_url, clickbait_set, normal_set) {
         if (text_content_concat.split(" ").length <= 3)
             return true;
         var lowercase = text_content_concat.toLowerCase();
+        // probably an xml tag
+        if (lowercase[0] === "<")
+            return true;
         var normal_contents = ["share on", "share with", "<img", "real estate",
             "on twitter", "on instagram", "on facebook", "on google+", "hotels near", "out of 5 stars",
             "camera & photo", "food & beverage", "fitness & running", "national park"];
