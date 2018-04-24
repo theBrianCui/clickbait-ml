@@ -219,7 +219,7 @@ function createRequestPromise(urls: Array<string>, depth: number): Array<Promise
         }
 
         let adapter_selectors = getKnownAdapter(url);
-        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 800)).then(() => request({
+        let req: Promise<any> = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 1500)).then(() => request({
                 url: url,
                 headers: {
                     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
