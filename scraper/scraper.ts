@@ -60,17 +60,17 @@ var known_text_set = new Set();
     try {
         let normal_known: Array<string> = fs.readFileSync(args[2], "utf8").split("\n").filter((text) => text !== "");
         for (let text of normal_known) {
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
 
         let unknown_known: Array<string> = fs.readFileSync(args[3], "utf8").split("\n").filter((text) => text !== "");
         for (let text of unknown_known) {
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
 
         let clickbait_known: Array<string> = fs.readFileSync(args[4], "utf8").split("\n").filter((text) => text !== "");
         for (let text of clickbait_known) {
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
     } catch (e) {
         console.log("Output files do not exist, ignoring contents.");
@@ -189,18 +189,18 @@ function simpleClassify(anchors: Array<HTMLAnchorElement>, base_url: string,
 
         /* if it's less than or equal to 3 words, it's normal */
         if (normal_set.has(anchor_node) || isNormalText(text_content_concat)) {
-            NORMAL.write(JSON.stringify(text_content) + "\n");
+            NORMAL.write(text_content_concat +"\n");
             continue;
         }
 
         /* if the anchor node belongs to the clickbait_set, it's clickbait */
         if (clickbait_set.has(anchor_node)) {
-            CLICKBAIT.write(JSON.stringify(text_content) + "\n");
+            CLICKBAIT.write(text_content_concat + "\n");
             continue;
         }
 
         /* we don't know */
-        UNKNOWN.write(JSON.stringify(text_content) + "\n");
+        UNKNOWN.write(text_content_concat + "\n");
     }
 
     return inner_urls;

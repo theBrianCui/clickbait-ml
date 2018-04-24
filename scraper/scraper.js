@@ -45,17 +45,17 @@ var known_text_set = new Set();
         var normal_known = fs.readFileSync(args[2], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _i = 0, normal_known_1 = normal_known; _i < normal_known_1.length; _i++) {
             var text = normal_known_1[_i];
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
         var unknown_known = fs.readFileSync(args[3], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _a = 0, unknown_known_1 = unknown_known; _a < unknown_known_1.length; _a++) {
             var text = unknown_known_1[_a];
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
         var clickbait_known = fs.readFileSync(args[4], "utf8").split("\n").filter(function (text) { return text !== ""; });
         for (var _b = 0, clickbait_known_1 = clickbait_known; _b < clickbait_known_1.length; _b++) {
             var text = clickbait_known_1[_b];
-            known_text_set.add(JSON.parse(text).join(" "));
+            known_text_set.add(text);
         }
     }
     catch (e) {
@@ -152,16 +152,16 @@ function simpleClassify(anchors, base_url, clickbait_set, normal_set) {
         known_text_set.add(text_content_concat);
         /* if it's less than or equal to 3 words, it's normal */
         if (normal_set.has(anchor_node) || isNormalText(text_content_concat)) {
-            NORMAL.write(JSON.stringify(text_content) + "\n");
+            NORMAL.write(text_content_concat + "\n");
             continue;
         }
         /* if the anchor node belongs to the clickbait_set, it's clickbait */
         if (clickbait_set.has(anchor_node)) {
-            CLICKBAIT.write(JSON.stringify(text_content) + "\n");
+            CLICKBAIT.write(text_content_concat + "\n");
             continue;
         }
         /* we don't know */
-        UNKNOWN.write(JSON.stringify(text_content) + "\n");
+        UNKNOWN.write(text_content_concat + "\n");
     }
     return inner_urls;
 }
