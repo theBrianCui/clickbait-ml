@@ -176,7 +176,7 @@ function createRequestPromise(urls, depth) {
             process.exit(1);
         }
         var adapter_selectors = getKnownAdapter(url);
-        var req = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 1500)).then(function () { return request({
+        var req = Promise.delay(Math.floor(Math.random() * known_urls_set.size * 1000)).then(function () { return request({
             url: url,
             headers: {
                 'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0"
