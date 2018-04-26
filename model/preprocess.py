@@ -5,6 +5,7 @@ MAX_LENGTH = 100
 
 
 class PreprocessData:
+	'''
 	prefixes = ['a', 'ab', 'ac', 'ad', 'an', 'ante', 'anti', 'as', 'auto', 'ben', 'bi', 'circum', 'co', 'com', 'con',
 				'contra', 'counter', 'de', 'di', 'dis', 'ecto', 'eu', 'ex', 'exo', 'extra', 'extro', 'fore', 'hemi',
 				'hyper', 'hypo', 'il', 'im' 'in', 'inter', 'intra', 'ir', 'macro', 'mal', 'micro', 'mis', 'mono',
@@ -13,12 +14,13 @@ class PreprocessData:
 	suffixes = ['able', 'acy', 'al', 'al', 'ance', 'ate', 'dom', 'en', 'ence', 'er', 'esque', 'ful', 'fy', 'ible', 'ic',
 				'ical', 'ify', 'ious', 'ise', 'ish', 'ism', 'ist', 'ity', 'ive', 'ize', 'less', 'ment', 'ness', 'or',
 				'ous', 'ship', 'sion', 'tion', 'ty', 'y']
+	'''
 
-	def __init__(self, dataset_type='wsj'):
+	def __init__(self):
 		self.vocabulary = {}
 		self.pos_tags = {}
-		self.dataset_type = dataset_type
 
+		'''
 		self.prefix_orthographic_features = {}
 		self.suffix_orthographic_features = {}
 
@@ -29,40 +31,57 @@ class PreprocessData:
 		self.prefix_orthographic_features['num'] = 2
 
 		self.suffix_orthographic_features['hyphenated'] = 1
-
+		'''
 
 	## Get standard split for WSJ
-	def get_standard_split(self, files):
-		if self.dataset_type == 'wsj':
-			train_files = []
-			val_files = []
-			test_files = []
+	def get_standard_split(self, files, base_path):
+		all_examples = []
 
-			for file_ in files:
-				partition = int(file_.split('/')[-2])
+		for file_ in files:
+			is_clickbait = 0
 
-				if partition >= 0 and partition <= 18:
-					train_files.append(file_)
-				elif partition <= 21:
-					val_files.append(file_)
-				else:
-					test_files.append(file_)
+			if("clickbait" in file_):
+				is_clickbait = 1
 
-			return train_files, val_files, test_files
-		else:
-			raise Exception('Standard Split not Implemented for '+ self.dataset_type)
+			with open(file_) as f:
+				lines = f.readlines()
 
+				for line in lines:
+					example = []
+					example.append(is_clickbait + " " + line)
+					all_examples.append(example)
+			
+		random.shuffle(all_examples)
+		num_examples = len(all_examples)
 
+		trainFile = open(base_path + '/train.txt', 'w')
+		valFile = open(base_path + '/val.txt', 'w')
+		testFile = open(base_path + '/test.txt', 'w')
+
+		train_examples = all_examples[0 : num_examples * 3 / 4]
+		val_examples = all_examples[num_examples * 3 / 4 : num_examples * 7 / 8]
+		test_examples = all_examples[num_examples * 7 / 8 + 1 :]
+		
+		trainFile.write("\n".join(train_examples))
+		valFile.write("\n".join(val_examples))
+		testFile.write("\n".join(test_examples))
+		
+		train_files = [base_path + '/train.txt']
+		val_files = [base_path + '/val.txt']
+		test_files = [base_path + '/test.txt']
+
+		return train_files, val_files, test_files
+
+	'''
 	@staticmethod
 	def isFeasibleStartingCharacter(c):
 		unfeasibleChars = '[]@\n'
 		return not(c in unfeasibleChars)
-
+	'''
 
 	## unknown words represented by len(vocab)
 	def get_unk_id(self, dic):
 		return len(dic)
-
 
 	def get_pad_id(self, dic):
 		return len(self.vocabulary) + 1
@@ -79,12 +98,12 @@ class PreprocessData:
 
 		return dic[pos]
 
+	'''
 	def get_orthographic_id(self, pos, dic, mode):
 		if pos not in dic:
 			dic[pos] = len(dic)
 
 		return dic[pos]
-
 
 	def get_prefix_id(self, token, mode):
 		if(token[0].isupper()):
@@ -109,7 +128,7 @@ class PreprocessData:
 				return self.get_orthographic_id(suffix, self.suffix_orthographic_features, mode)
 
 		return self.prefix_orthographic_features['nothing']
-
+	'''
 
 	## Process single file to get raw data matrix
 	def processSingleFile(self, inFileName, mode):
@@ -122,53 +141,36 @@ class PreprocessData:
 
 			for line in lines:
 				line = line.strip()
+				is_clickbait = 0
 
 				if line == '':
 					pass
 				else:
 					tokens = line.split()
+					row = []
 
-					for token in tokens:
-						## ==== indicates start of new example					
-						if token[0] == '=':
-							if row:
-								matrix.append(row)
+					if(tokens[0] is "1"):
+							is_clickbait = 1
 
-							num_words = 0
-							row = []
-							break
-						elif PreprocessData.isFeasibleStartingCharacter(token[0]):
-							wordPosPair = token.split('/')
+					for token in tokens[1:]:
+						feature = self.get_id(token, self.vocabulary, mode)
 
-							if(len(wordPosPair) == 2 and num_words < MAX_LENGTH):
-								num_words += 1
+						#prefix_id = self.get_prefix_id(wordPosPair[0], mode)
+						#suffix_id = self.get_suffix_id(wordPosPair[0], mode)
 
-								## get ids for word and pos tag
-								feature = self.get_id(wordPosPair[0], self.vocabulary, mode)
+						#row.append((feature, self.get_id(wordPosPair[1], self.pos_tags, 'train'), prefix_id, suffix_id))
 
-								# get ids for prefix and suffix features
-								prefix_id = self.get_prefix_id(wordPosPair[0], mode)
-								suffix_id = self.get_suffix_id(wordPosPair[0], mode)
-
-								# include all pos tags.
-								row.append((feature, self.get_id(wordPosPair[1], self.pos_tags, 'train'), prefix_id, suffix_id))
-
-		if row:
-			matrix.append(row)
+						row.append(feature, is_clickbait''', prefix_id, suffix_id''')
+					
+					matrix.append(row)
 
 		return matrix
 
 
 	## get all data files in given subdirectories of given directory
-	def preProcessDirectory(self, inDirectoryName, subDirNames=['*']):
-		if not(subDirNames):
-			files = glob.glob(inDirectoryName+'/*.pos')
-		else:
-			files = [glob.glob(inDirectoryName+ '/' + subDirName + '/*.pos') for subDirName in subDirNames]
-			files = set().union(*files)
-
+	def preProcessDirectory(self, inDirectoryName):
+		files = glob.glob(inDirectoryName+'/*.txt')
 		return list(files)
-
 
 	## Get basic data matrix with (possibly) variable sized senteces, without padding
 	def get_raw_data(self, files, mode):
@@ -178,7 +180,6 @@ class PreprocessData:
 			matrix.extend(self.processSingleFile(f, mode))
 
 		return matrix
-
 
 	def split_data(self, data, fraction):
 		split_index = int(fraction*len(data))
@@ -193,14 +194,13 @@ class PreprocessData:
 
 		return left_split, right_split
 
-
 	## Get rid of sentences greater than max_size
 	## and pad the remaining if less than max_size
 	def get_processed_data(self, mat, max_size):
 		X = []
 		Y = []
-		PRE = []
-		SUF = []
+		#PRE = []
+		#SUF = []
 
 		original_len = len(mat)
 		mat = filter(lambda x: len(x) <= max_size, mat)
@@ -209,8 +209,8 @@ class PreprocessData:
 		for row in mat:
 			X_row = [tup[0] for tup in row]
 			Y_row = [tup[1] for tup in row]
-			PRE_row = [tup[2] for tup in row]
-			SUF_row = [tup[3] for tup in row]
+			#PRE_row = [tup[2] for tup in row]
+			#SUF_row = [tup[3] for tup in row]
 
 			## padded words represented by len(vocab) + 1
 			X_row += [self.get_pad_id(self.vocabulary)]*(max_size - len(X_row))
@@ -218,12 +218,12 @@ class PreprocessData:
 			## Padded pos tags represented by -1
 			Y_row += [-1]*(max_size - len(Y_row))
 
-			PRE_row += ([self.prefix_orthographic_features['nothing']] * (max_size - len(PRE_row)))
-			SUF_row += ([self.suffix_orthographic_features['nothing']] * (max_size - len(SUF_row)))
+			#PRE_row += ([self.prefix_orthographic_features['nothing']] * (max_size - len(PRE_row)))
+			#SUF_row += ([self.suffix_orthographic_features['nothing']] * (max_size - len(SUF_row)))
 
 			X.append(X_row)
 			Y.append(Y_row)
-			PRE.append(PRE_row)
-			SUF.append(SUF_row)
+			#PRE.append(PRE_row)
+			#SUF.append(SUF_row)
 
-		return X, Y, PRE, SUF, no_removed
+		return X, Y, '''PRE, SUF,''' no_removed

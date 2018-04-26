@@ -355,12 +355,12 @@ if __name__ == '__main__':
 	else:
 		mode = Mode[sys.argv[5]]
 
-	p = PreprocessData(dataset_type='wsj')
+	p = PreprocessData()
 
 	files = p.preProcessDirectory(dataset_path)
 
 	if split_type == 'standard':
-		train_files, val_files, test_files = p.get_standard_split(files)
+		train_files, val_files, test_files = p.get_standard_split(files, dataset_path)
 	else:
 		shuffle(files)
 		train_files, test_val_files = p.split_data(files, 0.8)
