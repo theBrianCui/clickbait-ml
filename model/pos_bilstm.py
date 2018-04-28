@@ -12,7 +12,7 @@ from random import shuffle
 from preprocess import PreprocessData
 from enum import Enum
 
-MAX_LENGTH = 100
+MAX_LENGTH = 20
 BATCH_SIZE = 128
 VALIDATION_FREQUENCY = 10
 CHECKPOINT_FREQUENCY = 50
@@ -345,9 +345,13 @@ def test(sentence_words_test, sentence_tags_test, pre_test, suf_test,
 
 
 if __name__ == '__main__':
-	dataset_path = sys.argv[1]
-	train_dir = sys.argv[2]
-	split_type = sys.argv[3]
+	# specify location of clickbait and normal files
+	clickbait_raw_path = sys.argv[1]
+	normal_raw_path = sys.argv[2]
+
+	# specify directory where model is saved or loaded
+	train_dir = sys.argv[3]
+	# specify train or test
 	experiment_type = sys.argv[4]
 
 	if(len(sys.argv) <= 5):
@@ -355,25 +359,23 @@ if __name__ == '__main__':
 	else:
 		mode = Mode[sys.argv[5]]
 
+	# initialize a new PreprocessData instance
 	p = PreprocessData()
+	# split them into training, validation, and test files
+	# these will be saved in train_dir/train.txt, train_dir/val.txt, train_dir/test.txt
+	train_file, val_file, test_file = p.get_standard_split(
+		clickbait_raw_path, normal_raw_path, train_dir)
 
-	files = p.preProcessDirectory(dataset_path)
+	train_mat = p.process_single_file(train_file, 'train')
+	val_mat = p.process_single_file(val_file, 'validation')
+	test_mat = p.process_single_file(test_file, 'test')
 
-	if split_type == 'standard':
-		train_files, val_files, test_files = p.get_standard_split(files, dataset_path)
-	else:
-		shuffle(files)
-		train_files, test_val_files = p.split_data(files, 0.8)
-		test_files, val_files = p.split_data(test_val_files, 0.5)
+	X_train, Y_train = p.get_processed_data(train_mat, MAX_LENGTH)
+	X_val, Y_val = p.get_processed_data(val_mat, MAX_LENGTH)
+	X_test, Y_test = p.get_processed_data(test_mat, MAX_LENGTH)
 
-	train_mat = p.get_raw_data(train_files, 'train')
-	val_mat = p.get_raw_data(val_files, 'validation')
-	test_mat = p.get_raw_data(test_files, 'test')
-
-	X_train, Y_train, P_train, S_train, _ = p.get_processed_data(train_mat, MAX_LENGTH)
-	X_val, Y_val, P_val, S_val, _ = p.get_processed_data(val_mat, MAX_LENGTH)
-	X_test, Y_test, P_test, S_test, _ = p.get_processed_data(test_mat, MAX_LENGTH)
-
+	# TODO model not ready. exit.
+	sys.exit(1)
 
 	if experiment_type == 'train':
 		if os.path.exists(train_dir):

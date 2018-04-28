@@ -1,83 +1,43 @@
 import glob
 from random import shuffle
 
-MAX_LENGTH = 100
-
-
 class PreprocessData:
-	'''
-	prefixes = ['a', 'ab', 'ac', 'ad', 'an', 'ante', 'anti', 'as', 'auto', 'ben', 'bi', 'circum', 'co', 'com', 'con',
-				'contra', 'counter', 'de', 'di', 'dis', 'ecto', 'eu', 'ex', 'exo', 'extra', 'extro', 'fore', 'hemi',
-				'hyper', 'hypo', 'il', 'im' 'in', 'inter', 'intra', 'ir', 'macro', 'mal', 'micro', 'mis', 'mono',
-				'multi', 'non', 'o', 'ob', 'oc', 'omni', 'op', 'peri', 'poly', 'post', 'pre', 'pro', 'quad', 're',
-				'semi', 'sub', 'super', 'supra', 'sym', 'syn', 'trans', 'tri', 'ultra', 'un', 'uni']
-	suffixes = ['able', 'acy', 'al', 'al', 'ance', 'ate', 'dom', 'en', 'ence', 'er', 'esque', 'ful', 'fy', 'ible', 'ic',
-				'ical', 'ify', 'ious', 'ise', 'ish', 'ism', 'ist', 'ity', 'ive', 'ize', 'less', 'ment', 'ness', 'or',
-				'ous', 'ship', 'sion', 'tion', 'ty', 'y']
-	'''
-
 	def __init__(self):
 		self.vocabulary = {}
 		self.pos_tags = {}
 
-		'''
-		self.prefix_orthographic_features = {}
-		self.suffix_orthographic_features = {}
-
-		self.prefix_orthographic_features['nothing'] = 0
-		self.suffix_orthographic_features['nothing'] = 0
-
-		self.prefix_orthographic_features['capitalized'] = 1
-		self.prefix_orthographic_features['num'] = 2
-
-		self.suffix_orthographic_features['hyphenated'] = 1
-		'''
-
-	## Get standard split for WSJ
-	def get_standard_split(self, files, base_path):
+	## Get standard split for training, validation, and test
+	def get_standard_split(self, clickbait_raw, normal_raw, base_path):
 		all_examples = []
+		with open(clickbait_raw, "r") as f:
+			for line in f:
+				all_examples.append(str(1) + " " + line)
 
-		for file_ in files:
-			is_clickbait = 0
+		with open(normal_raw, "r") as f:
+			for line in f:
+				all_examples.append(str(0) + " " + line)
 
-			if("clickbait" in file_):
-				is_clickbait = 1
-
-			with open(file_) as f:
-				lines = f.readlines()
-
-				for line in lines:
-					example = []
-					example.append(is_clickbait + " " + line)
-					all_examples.append(example)
-			
-		random.shuffle(all_examples)
+		# shuffle all the examples in place
+		shuffle(all_examples)
 		num_examples = len(all_examples)
 
 		trainFile = open(base_path + '/train.txt', 'w')
 		valFile = open(base_path + '/val.txt', 'w')
 		testFile = open(base_path + '/test.txt', 'w')
 
-		train_examples = all_examples[0 : num_examples * 3 / 4]
-		val_examples = all_examples[num_examples * 3 / 4 : num_examples * 7 / 8]
+		train_examples = all_examples[0 : num_examples * 6 / 8]
+		val_examples = all_examples[num_examples * 6 / 8 : num_examples * 7 / 8]
 		test_examples = all_examples[num_examples * 7 / 8 + 1 :]
-		
-		trainFile.write("\n".join(train_examples))
-		valFile.write("\n".join(val_examples))
-		testFile.write("\n".join(test_examples))
-		
-		train_files = [base_path + '/train.txt']
-		val_files = [base_path + '/val.txt']
-		test_files = [base_path + '/test.txt']
 
-		return train_files, val_files, test_files
+		trainFile.write("".join(train_examples))
+		valFile.write("".join(val_examples))
+		testFile.write("".join(test_examples))
+		
+		train_file = base_path + '/train.txt'
+		val_file = base_path + '/val.txt'
+		test_file = base_path + '/test.txt'
 
-	'''
-	@staticmethod
-	def isFeasibleStartingCharacter(c):
-		unfeasibleChars = '[]@\n'
-		return not(c in unfeasibleChars)
-	'''
+		return train_file, val_file, test_file
 
 	## unknown words represented by len(vocab)
 	def get_unk_id(self, dic):
@@ -98,42 +58,10 @@ class PreprocessData:
 
 		return dic[pos]
 
-	'''
-	def get_orthographic_id(self, pos, dic, mode):
-		if pos not in dic:
-			dic[pos] = len(dic)
-
-		return dic[pos]
-
-	def get_prefix_id(self, token, mode):
-		if(token[0].isupper()):
-			return self.prefix_orthographic_features['capitalized']
-
-		if(token[0].isdigit()):
-			return self.prefix_orthographic_features['num']
-
-		for prefix in self.prefixes:
-			if(token.startswith(prefix)):
-				return self.get_orthographic_id(prefix, self.prefix_orthographic_features, mode)
-
-		return self.prefix_orthographic_features['nothing']
-
-
-	def get_suffix_id(self, token, mode):
-		if("-" in token):
-			return self.suffix_orthographic_features['hyphenated']
-
-		for suffix in self.suffixes:
-			if(token.endswith(suffix)):
-				return self.get_orthographic_id(suffix, self.suffix_orthographic_features, mode)
-
-		return self.prefix_orthographic_features['nothing']
-	'''
-
 	## Process single file to get raw data matrix
-	def processSingleFile(self, inFileName, mode):
+	## The raw data matrix is shaped like ( (0|1, (tokens... )) ...)
+	def process_single_file(self, inFileName, mode):
 		matrix = []
-		row = []
 		num_words = 0
 
 		with open(inFileName) as f:
@@ -144,40 +72,17 @@ class PreprocessData:
 				is_clickbait = 0
 
 				if line == '':
-					pass
-				else:
-					tokens = line.split()
-					row = []
+					continue
 
-					if(tokens[0] is "1"):
-							is_clickbait = 1
+				tokens = line.split()
+				row = []
+				if tokens[0] == "1":
+					is_clickbait = 1
 
-					for token in tokens[1:]:
-						feature = self.get_id(token, self.vocabulary, mode)
-
-						#prefix_id = self.get_prefix_id(wordPosPair[0], mode)
-						#suffix_id = self.get_suffix_id(wordPosPair[0], mode)
-
-						#row.append((feature, self.get_id(wordPosPair[1], self.pos_tags, 'train'), prefix_id, suffix_id))
-
-						row.append(feature, is_clickbait''', prefix_id, suffix_id''')
-					
-					matrix.append(row)
-
-		return matrix
-
-
-	## get all data files in given subdirectories of given directory
-	def preProcessDirectory(self, inDirectoryName):
-		files = glob.glob(inDirectoryName+'/*.txt')
-		return list(files)
-
-	## Get basic data matrix with (possibly) variable sized senteces, without padding
-	def get_raw_data(self, files, mode):
-		matrix = []
-
-		for f in files:
-			matrix.extend(self.processSingleFile(f, mode))
+				for token in tokens[1:]:
+					feature = self.get_id(token, self.vocabulary, mode)
+					row.append(feature)
+				matrix.append((is_clickbait, row))
 
 		return matrix
 
@@ -194,36 +99,23 @@ class PreprocessData:
 
 		return left_split, right_split
 
-	## Get rid of sentences greater than max_size
+	## Truncate sentences greater than max_size
 	## and pad the remaining if less than max_size
+	## The raw data matrix is shaped like ( (0|1, (tokens... )) ...)
 	def get_processed_data(self, mat, max_size):
-		X = []
-		Y = []
-		#PRE = []
-		#SUF = []
-
-		original_len = len(mat)
-		mat = filter(lambda x: len(x) <= max_size, mat)
-		no_removed = original_len - len(mat)
+		X = [] # an array of tuples, each tuple is a tokenized sentence (in id form, including padding and unknown)
+		Y = [] # an array of numbers, 1 for clickbait, 0 otherwise
 
 		for row in mat:
-			X_row = [tup[0] for tup in row]
-			Y_row = [tup[1] for tup in row]
-			#PRE_row = [tup[2] for tup in row]
-			#SUF_row = [tup[3] for tup in row]
+			Y.append(row[0])
+			X_row = list(row[1])
 
-			## padded words represented by len(vocab) + 1
-			X_row += [self.get_pad_id(self.vocabulary)]*(max_size - len(X_row))
+			# truncate X_row if it's too long
+			if len(X_row) > max_size:
+				X_row = X_row[0:max_size]
+			else: # pad X_row if it's too short
+				X_row += [self.get_pad_id(self.vocabulary)] * (max_size - len(X_row))
 
-			## Padded pos tags represented by -1
-			Y_row += [-1]*(max_size - len(Y_row))
+			X.append(tuple(X_row))
 
-			#PRE_row += ([self.prefix_orthographic_features['nothing']] * (max_size - len(PRE_row)))
-			#SUF_row += ([self.suffix_orthographic_features['nothing']] * (max_size - len(SUF_row)))
-
-			X.append(X_row)
-			Y.append(Y_row)
-			#PRE.append(PRE_row)
-			#SUF.append(SUF_row)
-
-		return X, Y, '''PRE, SUF,''' no_removed
+		return X, Y
