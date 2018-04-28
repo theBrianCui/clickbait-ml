@@ -16,6 +16,7 @@
     "jsdom": "^11.7.0",
     "parse5": "^4.0.0",
     "request": "^2.85.0",
-    "request-promise": "^4.2.2"
+    "request-promise": "^4.2.2",
+    "shuffle-array": "^1.0.1"
   }
 }
