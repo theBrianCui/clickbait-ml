@@ -43,12 +43,14 @@ class Model:
 		lengths = tf.reduce_sum(mask, reduction_indices=1)
 		return mask, lengths
 
+	'''
 	## Embed the large one hot input vector into a smaller space
 	## to make the lstm learning tractable
 	def get_embedding(self, input_): ## TODO Replace with word2vec pretrained vectors
 		embedding = tf.get_variable("embedding",
 									[self._input_dim, self._hidden_state_size], dtype=tf.float32)
 		return tf.nn.embedding_lookup(embedding,tf.cast(input_, tf.int32))
+	'''
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def create_graph(self):
@@ -163,8 +165,8 @@ class Model:
 		return self._input_words
 
 	@property
-	def output_tags(self):
-		return self._output_tags
+	def output_clickbait(self):
+		return self._output_clickbait
 
 	@property
 	def loss(self):
@@ -176,7 +178,8 @@ class Model:
 
 	@property
 	def total_length(self):
-		return self._total_length
+		#return self._total_length
+		return BATCH_SIZE
 
 # Adapted from http://r2rt.com/recurrent-neural-networks-in-tensorflow-i.html
 def generate_batch(X, Y):
@@ -199,22 +202,19 @@ def generate_epochs(X, Y, no_of_epochs):
 		yield generate_batch(X, Y)
 
 ## Compute overall loss and accuracy on dev/test data
-def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val, pre, suf):
-	loss, accuracy, total_len, accuracy_oov, total_len_oov = 0.0, 0.0, 0, 0.0, 0
-	for i, epoch in enumerate(generate_epochs(sentence_words_val, sentence_tags_val, pre, suf, 1)):
-		for step, (X, Y, P, S) in enumerate(epoch):
-			batch_loss, batch_accuracy, batch_len, batch_accuracy_oov, batch_len_oov = \
-				sess.run([m.loss, m.accuracy, m.total_length, m.accuracy_oov, m.total_length_oov],
-						 feed_dict={m.input_words: X, m.output_tags: Y, m.prefix_features: P, m.suffix_features: S})
+def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val):
+	loss, accuracy, total_len = 0.0, 0.0, 0
+	for i, epoch in enumerate(generate_epochs(sentence_words_val, sentence_tags_val, 1)):
+		for step, (X, Y) in enumerate(epoch):
+			batch_loss, batch_accuracy, batch_len = \
+				sess.run([m.loss, m.accuracy, m.total_length],
+						 feed_dict={m.input_words: X, m.output_clickbait: Y})
 			loss += batch_loss
 			accuracy += batch_accuracy
 			total_len += batch_len
-			accuracy_oov += batch_accuracy_oov
-			total_len_oov += batch_len_oov
 	loss = loss/total_len if total_len != 0 else 0
 	accuracy = accuracy/total_len if total_len != 0 else 1
-	accuracy_oov = accuracy_oov / total_len_oov if total_len_oov != 0 else 1
-	return loss, accuracy, accuracy_oov
+	return loss, accuracy
 
 ## train and test adapted from https://github.com/tensorflow/tensorflow/blob/master/tensorflow/
 ## models/image/cifar10/cifar10_train.py and cifar10_eval.py
@@ -254,19 +254,18 @@ def train(words_train, clickbait_train, words_validation,
 			for step, (X, Y) in enumerate(epoch):
 
 				_, summary_value = sess.run([train_op, summary_op], feed_dict=
-				{m.input_words:X, m.output_tags:Y})
+				{m.input_words:X, m.output_clickbait:Y})
 				duration = time.time() - start_time
 				j += 1
 				if j % VALIDATION_FREQUENCY == 0:
-					val_loss, val_accuracy, val_accuracy_oov = compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val, pre_val, suf_val)
+					val_loss, val_accuracy = compute_summary_metrics(sess, m, words_validation, clickbait_validation)
 					summary = tf.Summary()
 					summary.ParseFromString(summary_value)
 					summary.value.add(tag='Validation Loss', simple_value=val_loss)
 					summary.value.add(tag='Validation Accuracy', simple_value=val_accuracy)
-					summary.value.add(tag='Validation OOV Accuracy', simple_value=val_accuracy_oov)
 					summary_writer.add_summary(summary, j)
-					log_string = '{} batches ====> Validation Accuracy {:.3f}, Validation OOV Accuracy {:.3f}, Validation Loss {:.3f}'
-					print duration, log_string.format(j, val_accuracy, val_accuracy_oov, val_loss)
+					log_string = '{} batches ====> Validation Accuracy {:.3f}, Validation Loss {:.3f}'
+					print duration, log_string.format(j, val_accuracy, val_loss)
 				else:
 					summary_writer.add_summary(summary_value, j)
 
@@ -290,9 +289,8 @@ def test(words_test, clickbait_test, train_dir):
 				saver.restore(sess, ckpt.model_checkpoint_path)
 
 				global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
-			test_loss, test_accuracy, test_accuracy_oov = compute_summary_metrics(sess, m, sentence_words_test,
-															   sentence_tags_test, pre_test, suf_test)
-			print 'OOV Test Accuracy: {:.3f}'.format(test_accuracy_oov)
+			test_loss, test_accuracy = compute_summary_metrics(sess, m, words_test,
+															   clickbait_test)
 			print 'Test Accuracy: {:.3f}'.format(test_accuracy)
 			print 'Test Loss: {:.3f}'.format(test_loss)
 
