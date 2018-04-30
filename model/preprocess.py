@@ -1,4 +1,5 @@
 import glob
+import os
 from random import shuffle
 
 class PreprocessData:
@@ -21,9 +22,13 @@ class PreprocessData:
 		shuffle(all_examples)
 		num_examples = len(all_examples)
 
-		trainFile = open(base_path + '/train.txt', 'w')
-		valFile = open(base_path + '/val.txt', 'w')
-		testFile = open(base_path + '/test.txt', 'w')
+		train_file = os.getcwd() + '/train.txt'
+		val_file = os.getcwd() + '/val.txt'
+		test_file = os.getcwd() + '/test.txt'
+
+		trainFile = open(train_file, 'w+')
+		valFile = open(val_file, 'w+')
+		testFile = open(test_file, 'w+')
 
 		train_examples = all_examples[0 : num_examples * 6 / 8]
 		val_examples = all_examples[num_examples * 6 / 8 : num_examples * 7 / 8]
@@ -32,10 +37,6 @@ class PreprocessData:
 		trainFile.write("".join(train_examples))
 		valFile.write("".join(val_examples))
 		testFile.write("".join(test_examples))
-		
-		train_file = base_path + '/train.txt'
-		val_file = base_path + '/val.txt'
-		test_file = base_path + '/test.txt'
 
 		return train_file, val_file, test_file
 
