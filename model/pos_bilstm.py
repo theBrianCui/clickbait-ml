@@ -27,12 +27,13 @@ class Model:
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def create_placeholders(self):
-		self._input_words = tf.placeholder(tf.int32, [BATCH_SIZE, self._sequence_len])
+		self._input_words = tf.placeholder(tf.float64, [BATCH_SIZE, self._sequence_len, self._hidden_state_size])
 		self._output_clickbait = tf.placeholder(tf.int32, [BATCH_SIZE, 1])
 
-	def set_input_output(self, input_, output):
-		self._input_words = input_
-		self._output_tags = output
+
+	#def set_input_output(self, input_, output):
+	#	self._input_words = input_
+	#	self._output_tags = output
 
 	## Returns the mask that is 1 for the actual words
 	## and 0 for the padded part
@@ -56,22 +57,24 @@ class Model:
 		## Since we are padding the input, we need to give
 		## the actual length of every instance in the batch
 		## so that the backward lstm works properly
+		'''
 		self._mask, self._lengths = self.get_mask(self._output_tags)
 		self._total_length = tf.reduce_sum(self._lengths)
+		'''
 
-		## Embedd the very large input vector into a smaller dimension
+		## Embed the very large input vector into a smaller dimension
 		## This is for computational tractability
-		with tf.variable_scope("lstm_input"):
-			lstm_input = self.get_embedding(self._input_words)
+		#with tf.variable_scope("lstm_input"):
+			#lstm_input = self.get_embedding(self._input_words) # expected to return [BATCH SIZE, MAX LEN, 300]
 
-			"""
-			if self._mode == Mode.INPUT:
-				prefix = tf.one_hot(self._prefix_features, self._prefix_dim)
-				suffix = tf.one_hot(self._suffix_features, self._suffix_dim)
-
-				self._hidden_state_size += self._prefix_dim + self._suffix_dim
-
-				lstm_input = tf.concat([lstm_input, prefix, suffix], axis=2)"""
+			# """
+			# if self._mode == Mode.INPUT:
+			# 	prefix = tf.one_hot(self._prefix_features, self._prefix_dim)
+			# 	suffix = tf.one_hot(self._suffix_features, self._suffix_dim)
+            #
+			# 	self._hidden_state_size += self._prefix_dim + self._suffix_dim
+            #
+			# 	lstm_input = tf.concat([lstm_input, prefix, suffix], axis=2)"""
 
 		## Create forward and backward cell
 		forward_cell = tf.contrib.rnn.LSTMCell(self._hidden_state_size, state_is_tuple=True)
@@ -83,8 +86,7 @@ class Model:
 		## into a list of tensors (one per time step)
 		with tf.variable_scope("lstm"):
 			outputs, _ = tf.nn.bidirectional_dynamic_rnn(forward_cell, backward_cell,
-														 lstm_input, dtype=tf.float32,
-														 sequence_length=self._lengths)
+														 self._input_words, dtype=tf.float32) #sequence_length=self._lengths)
 
 		with tf.variable_scope("lstm_output"):
 			## concat forward and backward states
@@ -100,11 +102,11 @@ class Model:
 			## example at each time step
 			self._probabilities = tf.nn.softmax(logits)
 
-		self._loss = self.cost(self._output_tags, self._probabilities)
-		self._average_loss = self._loss/tf.cast(self._total_length, tf.float32)
+		self._loss = self.cost(self._output_clickbait, self._probabilities)
+		self._average_loss = self._loss/tf.cast(BATCH_SIZE, tf.float32)
 
-		self._accuracy = self.compute_accuracy(self._output_tags, self._probabilities, self._mask)
-		self._average_accuracy = self._accuracy/tf.cast(self._total_length, tf.float32)
+		self._accuracy = self.compute_accuracy(self._output_clickbait, self._probabilities) #, self._mask)
+		self._average_accuracy = self._accuracy/tf.cast(BATCH_SIZE, tf.float32)
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py weight_and_bias function
 	## Creates a fully connected layer with the given dimensions and parameters
@@ -118,10 +120,10 @@ class Model:
 		softmax_input_size = int(outputs.get_shape()[2])
 		outputs = tf.reshape(outputs, [-1, softmax_input_size])
 
-		weights, bias = self.initialize_fc_layer(softmax_input_size, 1)
+		weights, bias = self.initialize_fc_layer(softmax_input_size, 2)
 
 		logits = tf.matmul(outputs, weights) + bias
-		logits = tf.reshape(logits, [-1, self._sequence_len, 1])
+		logits = tf.reshape(logits, [-1, self._sequence_len, 2])
 		return logits
 
 	def add_loss_summary(self):
@@ -139,16 +141,17 @@ class Model:
 		return apply_gradient_op
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
-	def compute_accuracy(self, pos_classes, probabilities, mask):
+	def compute_accuracy(self, clickbait_or_not, probabilities, mask = None):
 		predicted_classes = tf.cast(tf.argmax(probabilities, dimension=2), tf.int32)
-		correct_predictions = tf.cast(tf.equal(predicted_classes, pos_classes), tf.int32)
-		correct_predictions = tf.multiply(correct_predictions, mask)
+		correct_predictions = tf.cast(tf.equal(predicted_classes, clickbait_or_not), tf.int32)
+		if (mask != None):
+			correct_predictions = tf.multiply(correct_predictions, mask)
 		return tf.cast(tf.reduce_sum(correct_predictions), tf.float32)
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
-	def cost(self, pos_classes, probabilities):
-		pos_classes = tf.cast(pos_classes, tf.int32)
-		pos_one_hot = tf.one_hot(pos_classes, self._output_dim)
+	def cost(self, clickbait_or_not, probabilities):
+		pos_classes = tf.cast(clickbait_or_not, tf.int32)
+		pos_one_hot = tf.one_hot(pos_classes, 2)
 		pos_one_hot = tf.cast(pos_one_hot, tf.float32)
 		## masking not needed since pos class vector will be zero for
 		## padded time steps
@@ -306,7 +309,6 @@ if __name__ == '__main__':
 
 	# initialize a new PreprocessData instance
 	p = PreprocessData()
-	print("Finished Making PreprocessData")
 	# split them into training, validation, and test files
 	# these will be saved in train_dir/train.txt, train_dir/val.txt, train_dir/test.txt
 	train_file, val_file, test_file = p.get_standard_split(
@@ -321,7 +323,6 @@ if __name__ == '__main__':
 	X_test, Y_test = p.get_processed_data(test_mat, MAX_LENGTH)
 
 	# TODO model not ready. exit.
-	sys.exit(1)
 
 	if experiment_type == 'train':
 		if os.path.exists(train_dir):
