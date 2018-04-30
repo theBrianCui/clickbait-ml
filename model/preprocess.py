@@ -109,7 +109,7 @@ class PreprocessData:
 		Y = [] # an array of numbers, 1 for clickbait, 0 otherwise
 
 		for row in mat:
-			Y.append(row[0])
+			Y.append([row[0]])
 			X_row = list(row[1])
 
 			# truncate X_row if it's too long

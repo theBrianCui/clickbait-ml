@@ -27,7 +27,7 @@ class Model:
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def create_placeholders(self):
-		self._input_words = tf.placeholder(tf.float64, [BATCH_SIZE, self._sequence_len, self._hidden_state_size])
+		self._input_words = tf.placeholder(tf.float32, [BATCH_SIZE, self._sequence_len, self._hidden_state_size])
 		self._output_clickbait = tf.placeholder(tf.int32, [BATCH_SIZE, 1])
 
 
@@ -179,7 +179,7 @@ class Model:
 	@property
 	def total_length(self):
 		#return self._total_length
-		return BATCH_SIZE
+		return tf.constant(BATCH_SIZE)
 
 # Adapted from http://r2rt.com/recurrent-neural-networks-in-tensorflow-i.html
 def generate_batch(X, Y):
