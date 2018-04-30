@@ -10,7 +10,6 @@ import itertools
 from datetime import datetime
 from random import shuffle
 from preprocess import PreprocessData
-from enum import Enum
 
 MAX_LENGTH = 20
 BATCH_SIZE = 128
@@ -18,31 +17,18 @@ VALIDATION_FREQUENCY = 10
 CHECKPOINT_FREQUENCY = 50
 NO_OF_EPOCHS = 6
 
-class Mode(Enum):
-    BASELINE = 0
-    INPUT = 1
-    OUTPUT = 2
-
 ## Model class is adatepd from model.py found here
 ## https://github.com/monikkinom/ner-lstm/
 class Model:
-	def __init__(self, input_dim, prefix_dim, suffix_dim, sequence_len, output_dim,
-				 mode, hidden_state_size=300):
-		self._input_dim = input_dim
-		self._prefix_dim = prefix_dim
-		self._suffix_dim = suffix_dim
+	def __init__(self, sequence_len, hidden_state_size=300):
 		self._sequence_len = sequence_len
-		self._output_dim = output_dim
 		self._hidden_state_size = hidden_state_size
-		self._mode = mode
 		self._optimizer = tf.train.AdamOptimizer(0.0005)
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def create_placeholders(self):
 		self._input_words = tf.placeholder(tf.int32, [BATCH_SIZE, self._sequence_len])
-		self._prefix_features = tf.placeholder(tf.int32, [BATCH_SIZE, self._sequence_len])
-		self._suffix_features = tf.placeholder(tf.int32, [BATCH_SIZE, self._sequence_len])
-		self._output_tags = tf.placeholder(tf.int32, [BATCH_SIZE, self._sequence_len])
+		self._output_clickbait = tf.placeholder(tf.int32, [BATCH_SIZE, 1])
 
 	def set_input_output(self, input_, output):
 		self._input_words = input_
@@ -56,16 +42,11 @@ class Model:
 		lengths = tf.reduce_sum(mask, reduction_indices=1)
 		return mask, lengths
 
-	def get_oov_mask(self, t):
-		mask = tf.cast(tf.equal(t, self._input_dim - 2), tf.int32)
-		lengths = tf.reduce_sum(mask, reduction_indices=1)
-		return mask, lengths
-
 	## Embed the large one hot input vector into a smaller space
 	## to make the lstm learning tractable
-	def get_embedding(self, input_):
+	def get_embedding(self, input_): ## TODO Replace with word2vec pretrained vectors
 		embedding = tf.get_variable("embedding",
-									[self._input_dim,self._hidden_state_size ], dtype=tf.float32)
+									[self._input_dim, self._hidden_state_size], dtype=tf.float32)
 		return tf.nn.embedding_lookup(embedding,tf.cast(input_, tf.int32))
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
@@ -76,22 +57,21 @@ class Model:
 		## the actual length of every instance in the batch
 		## so that the backward lstm works properly
 		self._mask, self._lengths = self.get_mask(self._output_tags)
-		self._mask_oov, self._lengths_oov = self.get_oov_mask(self._input_words)
 		self._total_length = tf.reduce_sum(self._lengths)
-		self._total_length_oov = tf.reduce_sum(self._lengths_oov)
 
 		## Embedd the very large input vector into a smaller dimension
 		## This is for computational tractability
 		with tf.variable_scope("lstm_input"):
 			lstm_input = self.get_embedding(self._input_words)
 
+			"""
 			if self._mode == Mode.INPUT:
 				prefix = tf.one_hot(self._prefix_features, self._prefix_dim)
 				suffix = tf.one_hot(self._suffix_features, self._suffix_dim)
 
 				self._hidden_state_size += self._prefix_dim + self._suffix_dim
 
-				lstm_input = tf.concat([lstm_input, prefix, suffix], axis=2)
+				lstm_input = tf.concat([lstm_input, prefix, suffix], axis=2)"""
 
 		## Create forward and backward cell
 		forward_cell = tf.contrib.rnn.LSTMCell(self._hidden_state_size, state_is_tuple=True)
@@ -103,18 +83,12 @@ class Model:
 		## into a list of tensors (one per time step)
 		with tf.variable_scope("lstm"):
 			outputs, _ = tf.nn.bidirectional_dynamic_rnn(forward_cell, backward_cell,
-														 lstm_input,dtype=tf.float32,
+														 lstm_input, dtype=tf.float32,
 														 sequence_length=self._lengths)
 
 		with tf.variable_scope("lstm_output"):
 			## concat forward and backward states
 			outputs = tf.concat(outputs, 2)
-
-			if mode == Mode.OUTPUT:
-				prefix = tf.one_hot(self._prefix_features, self._prefix_dim)
-				suffix = tf.one_hot(self._suffix_features, self._suffix_dim)
-				outputs = tf.concat([outputs, prefix, suffix], axis=2)
-
 
 			## Apply linear transformation to get logits(unnormalized scores)
 			logits = self.compute_logits(outputs)
@@ -126,15 +100,11 @@ class Model:
 			## example at each time step
 			self._probabilities = tf.nn.softmax(logits)
 
-		self._loss = self.cost( self._output_tags, self._probabilities)
+		self._loss = self.cost(self._output_tags, self._probabilities)
 		self._average_loss = self._loss/tf.cast(self._total_length, tf.float32)
 
-		self._accuracy = self.compute_accuracy( self._output_tags, self._probabilities, self._mask)
+		self._accuracy = self.compute_accuracy(self._output_tags, self._probabilities, self._mask)
 		self._average_accuracy = self._accuracy/tf.cast(self._total_length, tf.float32)
-
-		self._accuracy_oov = self.compute_accuracy(self._output_tags, self._probabilities, self._mask_oov)
-		self._average_accuracy_oov = self._accuracy_oov / tf.cast(self._total_length_oov,
-																  tf.float32) if self._total_length_oov != 0 else 1.0
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py weight_and_bias function
 	## Creates a fully connected layer with the given dimensions and parameters
@@ -148,10 +118,10 @@ class Model:
 		softmax_input_size = int(outputs.get_shape()[2])
 		outputs = tf.reshape(outputs, [-1, softmax_input_size])
 
-		W, b = self.initialize_fc_layer(softmax_input_size, self._output_dim)
+		weights, bias = self.initialize_fc_layer(softmax_input_size, 1)
 
-		logits = tf.matmul(outputs, W) + b
-		logits = tf.reshape(logits, [-1, self._sequence_len, self._output_dim])
+		logits = tf.matmul(outputs, weights) + bias
+		logits = tf.reshape(logits, [-1, self._sequence_len, 1])
 		return logits
 
 	def add_loss_summary(self):
@@ -159,9 +129,6 @@ class Model:
 
 	def add_accuracy_summary(self):
 		tf.summary.scalar('Accuracy', self._average_accuracy)
-
-	def add_accuracy_oov_summary(self):
-		tf.summary.scalar('OOV Accuracy', self._average_accuracy_oov)
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def get_train_op(self, loss, global_step):
@@ -208,22 +175,6 @@ class Model:
 	def total_length(self):
 		return self._total_length
 
-	@property
-	def prefix_features(self):
-		return self._prefix_features
-
-	@property
-	def suffix_features(self):
-		return self._suffix_features
-
-	@property
-	def accuracy_oov(self):
-		return self._accuracy_oov
-
-	@property
-	def total_length_oov(self):
-		return self._total_length_oov
-
 # Adapted from http://r2rt.com/recurrent-neural-networks-in-tensorflow-i.html
 def generate_batch(X, Y, P, S):
 	for i in xrange(0, len(X), BATCH_SIZE):
@@ -266,14 +217,15 @@ def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val, pre,
 
 ## train and test adapted from https://github.com/tensorflow/tensorflow/blob/master/tensorflow/
 ## models/image/cifar10/cifar10_train.py and cifar10_eval.py
-def train(sentence_words_train, sentence_tags_train, pre_train, suf_train, sentence_words_val,
-		  sentence_tags_val, pre_val, suf_val, vocab_size, pre_size, suf_size, no_pos_classes, train_dir, mode):
-	m = Model(vocab_size, pre_size, suf_size, MAX_LENGTH, no_pos_classes, mode)
+def train(words_train, clickbait_train, words_validation,
+		  clickbait_validation, train_dir):
+	m = Model(MAX_LENGTH)
+
 	with tf.Graph().as_default():
 		global_step = tf.Variable(0, trainable=False)
 
 		## Add input/output placeholders
-		m.create_placeholders()
+		## m.create_placeholders() duplicate funcall?
 		## create the model graph
 		m.create_graph()
 		## create training op
@@ -285,7 +237,6 @@ def train(sentence_words_train, sentence_tags_train, pre_train, suf_train, sente
 
 		## add scalar summaries for loss, accuracy
 		m.add_accuracy_summary()
-		m.add_accuracy_oov_summary()
 		m.add_loss_summary()
 		summary_op = tf.summary.merge_all()
 
@@ -323,9 +274,8 @@ def train(sentence_words_train, sentence_tags_train, pre_train, suf_train, sente
 ## Check performance on held out test data
 ## Loads most recent model from train_dir
 ## and applies it on test data
-def test(sentence_words_test, sentence_tags_test, pre_test, suf_test,
-		 vocab_size, pre_size, suf_size, no_pos_classes, train_dir, mode):
-	m = Model(vocab_size, pre_size, suf_size, MAX_LENGTH, no_pos_classes, mode)
+def test(words_test, clickbait_test, train_dir):
+	m = Model(MAX_LENGTH)
 	with tf.Graph().as_default():
 		global_step = tf.Variable(0, trainable=False)
 		m.create_placeholders()
@@ -354,11 +304,6 @@ if __name__ == '__main__':
 	# specify train or test
 	experiment_type = sys.argv[4]
 
-	if(len(sys.argv) <= 5):
-		mode = Mode['BASELINE']
-	else:
-		mode = Mode[sys.argv[5]]
-
 	# initialize a new PreprocessData instance
 	p = PreprocessData()
 	# split them into training, validation, and test files
@@ -381,6 +326,6 @@ if __name__ == '__main__':
 		if os.path.exists(train_dir):
 			shutil.rmtree(train_dir)
 		os.mkdir(train_dir)
-		train(X_train, Y_train, P_train, S_train, X_val, Y_val, P_val, S_val, len(p.vocabulary) + 2, len(p.prefix_orthographic_features), len(p.suffix_orthographic_features), len(p.pos_tags) + 1, train_dir, mode)
+		train(X_train, Y_train, X_val, Y_val, train_dir)
 	else:
-		test(X_test, Y_test, P_test, S_test, len(p.vocabulary) + 2, len(p.prefix_orthographic_features), len(p.suffix_orthographic_features), len(p.pos_tags) + 1, train_dir, mode)
+		test(X_test, Y_test, train_dir)
