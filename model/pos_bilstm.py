@@ -359,8 +359,11 @@ if __name__ == '__main__':
 	else:
 		mode = Mode[sys.argv[5]]
 
+	print("Making PreprocessData")
+
 	# initialize a new PreprocessData instance
 	p = PreprocessData()
+	print("Finished Making PreprocessData")
 	# split them into training, validation, and test files
 	# these will be saved in train_dir/train.txt, train_dir/val.txt, train_dir/test.txt
 	train_file, val_file, test_file = p.get_standard_split(

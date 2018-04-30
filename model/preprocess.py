@@ -1,11 +1,15 @@
 import glob
 import os
+import numpy
+from gensim.models import KeyedVectors
 from random import shuffle
 
 class PreprocessData:
 	def __init__(self):
 		self.vocabulary = {}
 		self.pos_tags = {}
+		self.filename = '/Users/Akshay/Downloads/GoogleNews-vectors-negative300.bin'
+		self.model = KeyedVectors.load_word2vec_format(self.filename, binary=True)
 
 	## Get standard split for training, validation, and test
 	def get_standard_split(self, clickbait_raw, normal_raw, base_path):
@@ -41,23 +45,20 @@ class PreprocessData:
 		return train_file, val_file, test_file
 
 	## unknown words represented by len(vocab)
-	def get_unk_id(self, dic):
-		return len(dic)
+	def get_unk_id(self):
+		return numpy.array([0.0] * 300)
 
-	def get_pad_id(self, dic):
-		return len(self.vocabulary) + 1
+	def get_pad_id(self):
+		return numpy.array([0.0] * 300)
 
 	## get id of given token(pos) from dictionary dic.
 	## if not in dic, extend the dic if in train mode
 	## else use representation for unknown token
-	def get_id(self, pos, dic, mode):
-		if pos not in dic:
-			if mode == 'train':
-				dic[pos] = len(dic)
-			else:
-				return self.get_unk_id(dic)
-
-		return dic[pos]
+	def get_id(self, pos, mode):
+		try:
+			return self.model.get_vector(pos)
+		except:
+			return self.get_unk_id()
 
 	## Process single file to get raw data matrix
 	## The raw data matrix is shaped like ( (0|1, (tokens... )) ...)
@@ -81,7 +82,7 @@ class PreprocessData:
 					is_clickbait = 1
 
 				for token in tokens[1:]:
-					feature = self.get_id(token, self.vocabulary, mode)
+					feature = self.get_id(token, mode)
 					row.append(feature)
 				matrix.append((is_clickbait, row))
 
@@ -115,8 +116,11 @@ class PreprocessData:
 			if len(X_row) > max_size:
 				X_row = X_row[0:max_size]
 			else: # pad X_row if it's too short
-				X_row += [self.get_pad_id(self.vocabulary)] * (max_size - len(X_row))
+				X_row += [self.get_pad_id()] * (max_size - len(X_row))
 
 			X.append(tuple(X_row))
 
 		return X, Y
+
+if __name__ == '__main__':
+	exit(1)
