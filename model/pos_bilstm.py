@@ -176,26 +176,24 @@ class Model:
 		return self._total_length
 
 # Adapted from http://r2rt.com/recurrent-neural-networks-in-tensorflow-i.html
-def generate_batch(X, Y, P, S):
+def generate_batch(X, Y):
 	for i in xrange(0, len(X), BATCH_SIZE):
-		yield X[i:i + BATCH_SIZE], Y[i:i + BATCH_SIZE], P[i:i + BATCH_SIZE], S[i:i + BATCH_SIZE]
+		yield X[i:i + BATCH_SIZE], Y[i:i + BATCH_SIZE]
 
-def shuffle_data(X, Y, P, S):
+def shuffle_data(X, Y):
 	ran = range(len(X))
 	shuffle(ran)
-	return [X[num] for num in ran], [Y[num] for num in ran], [P[num] for num in ran], [S[num] for num in ran]
+	return [X[num] for num in ran], [Y[num] for num in ran]
 
 # Adapted from http://r2rt.com/recurrent-neural-networks-in-tensorflow-i.html
-def generate_epochs(X, Y, P, S, no_of_epochs):
+def generate_epochs(X, Y, no_of_epochs):
 	lx = len(X)
 	lx = (lx//BATCH_SIZE)*BATCH_SIZE
 	X = X[:lx]
 	Y = Y[:lx]
-	P = P[:lx]
-	S = S[:lx]
 	for i in range(no_of_epochs):
-		shuffle_data(X, Y, P, S)
-		yield generate_batch(X, Y, P, S)
+		X, Y = shuffle_data(X, Y)
+		yield generate_batch(X, Y)
 
 ## Compute overall loss and accuracy on dev/test data
 def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val, pre, suf):
@@ -248,10 +246,12 @@ def train(words_train, clickbait_train, words_validation,
 		summary_writer = tf.summary.FileWriter(train_dir, sess.graph)
 		j = 0
 		start_time = time.time()
-		for i, epoch in enumerate(generate_epochs(sentence_words_train, sentence_tags_train, pre_train, suf_train, NO_OF_EPOCHS)):
-			for step, (X, Y, P, S) in enumerate(epoch):
+		for i, epoch in enumerate(generate_epochs(words_train, clickbait_train, NO_OF_EPOCHS)):
+	
+			for step, (X, Y) in enumerate(epoch):
+
 				_, summary_value = sess.run([train_op, summary_op], feed_dict=
-				{m.input_words:X, m.output_tags:Y, m.prefix_features:P, m.suffix_features:S})
+				{m.input_words:X, m.output_tags:Y})
 				duration = time.time() - start_time
 				j += 1
 				if j % VALIDATION_FREQUENCY == 0:
