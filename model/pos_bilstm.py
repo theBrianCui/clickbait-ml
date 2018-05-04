@@ -43,14 +43,14 @@ class Model:
 	def get_mask(self, t):
 		# pad_tensor = tf.convert_to_tensor(numpy.array(-1), dtype=tf.float32)
 
-		mask = tf.cast(tf.not_equal(t, -1), tf.int32)
+		mask = tf.cast(tf.equal(t, -1), tf.int32)
 		print_shape("mask", mask) # [BATCH_SIZE, MAX_LEN, 300] --> [BATCH_SIZE, MAX_LEN]
 
 		padding_equiv_values = tf.reduce_sum(mask, axis = 2) # [BATCH_SIZE, MAX_LEN: sum of equals -1]
 		second_mask = tf.cast(tf.not_equal(padding_equiv_values, -300), tf.int32) # [BATCH_SIZE, MAX_LEN: booleans 1/0]
 		lengths = tf.reduce_sum(second_mask, reduction_indices=1) # [BATCH_SIZE, MAX_LEN: sum of booleans]
-		return mask, lengths
 
+		return mask, lengths
 	'''
 	## Embed the large one hot input vector into a smaller space
 	## to make the lstm learning tractable
