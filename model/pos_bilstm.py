@@ -33,7 +33,6 @@ class Model:
 		self._input_words = tf.placeholder(tf.float32, [BATCH_SIZE, self._sequence_len, self._hidden_state_size])
 		self._output_clickbait = tf.placeholder(tf.int32, [BATCH_SIZE, 1])
 
-
 	#def set_input_output(self, input_, output):
 	#	self._input_words = input_
 	#	self._output_tags = output
@@ -96,24 +95,27 @@ class Model:
 		with tf.variable_scope("lstm_output"):
 			## concat forward and backward states
 			outputs = tf.concat(outputs, 2)
+			print_shape("outputs after concat", outputs) # shape: [BATCH_SIZE, MAX_LEN, 600]?
 
 			## Apply linear transformation to get logits(unnormalized scores)
-			logits = self.compute_logits(outputs)
+			logits = self.compute_logits(outputs) # [BATCH_SIZE, 2]
 
 			## Get the normalized probabilities
 			## Note that this a rank 3 tensor
 			## It contains the probabilities of
 			## different POS tags for each batch
 			## example at each time step
-			self._probabilities = tf.nn.softmax(logits) # shape: [BATCH_SIZE, MAX_LEN, 2], desired: [BATCH_SIZE, 2]
+			self._probabilities = tf.nn.softmax(logits) # shape: [BATCH_SIZE, 2]
 			print_shape("self._probabilities", self._probabilities)
 
+		# [BATCH_SIZE, 2], [BATCH_SIZE, 2]
 		self._loss = self.cost(self._output_clickbait, self._probabilities)
 		print_shape("self._loss", self._loss)
 
 		self._average_loss = self._loss/tf.cast(BATCH_SIZE, tf.float32)
 		print_shape("self._average_loss", self._average_loss)
 
+		# [BATCH_SIZE, 2], [BATCH_SIZE, 2]
 		self._accuracy = self.compute_accuracy(self._output_clickbait, self._probabilities) #, self._mask)
 		print_shape("self._accuracy", self._accuracy)
 
@@ -129,21 +131,28 @@ class Model:
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def compute_logits(self, outputs):
+		# outputs: [BATCH_SIZE, MAX_LEN, 600]
+		max_sequence_len = int(outputs.get_shape()[1]) # MAX_LEN
 		softmax_input_size = int(outputs.get_shape()[2]) # shape: 600
+		flattened_output_size = max_sequence_len * softmax_input_size # 12000
+		print "Flattened output size: {0}".format(flattened_output_size)
 		print "Softmax input size shape: {0}".format(softmax_input_size)
-		outputs = tf.reshape(outputs, [-1, softmax_input_size]) # shape: [BATCH_SIZE * MAX_LEN = 2560, 600]
+
+		outputs = tf.reshape(outputs, [BATCH_SIZE, -1]) # shape: [128, 600 * MAX_LEN]
+
 		print "Outputs shape: {0}".format(outputs.get_shape())
 
-		weights, bias = self.initialize_fc_layer(softmax_input_size, 2)
-		print_shape("weights", weights) # shape: (600, 2)
-		print_shape("bias", bias) # shape: (2)
+		weights, bias = self.initialize_fc_layer(flattened_output_size, 2)
+		print_shape("weights", weights) # shape: [600 * MAX_LEN, 2]
+		print_shape("bias", bias) # shape: [2]
 
 		logits = tf.matmul(outputs, weights) + bias
-		print "Logits before reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE * MAX_LEN = 2560, 2]
+		print "Logits before reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE, 2]
 
-		logits = tf.reshape(logits, [-1, self._sequence_len, 2])
-		print "Logits after reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE, MAX_LEN, 2]
-		return logits
+		#logits = tf.reshape(logits, [-1, self._sequence_len, 2])
+		#print "Logits after reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE, MAX_LEN, 2]
+
+		return logits # [BATCH_SIZE, 2]
 
 	def add_loss_summary(self):
 		tf.summary.scalar('Loss', self._average_loss)
@@ -169,13 +178,18 @@ class Model:
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
 	def cost(self, clickbait_or_not, probabilities):
-		# shape of probabilities: [BATCH_SIZE, MAX_LEN, 2]
-		pos_classes = tf.cast(clickbait_or_not, tf.int32)
+		# shape of clickbait_or_not: [BATCH_SIZE, 1]
+		# shape of probabilities: [BATCH_SIZE, 2]
+		clickbait_cast = tf.cast(clickbait_or_not, tf.int32)
+		pos_one_hot = tf.one_hot(clickbait_cast, 2)
 
-		pos_one_hot = tf.one_hot(pos_classes, 2)
 		pos_one_hot = tf.cast(pos_one_hot, tf.float32)
-		# shape of pos_one_hot: [BATCH_SIZE, 1, 2]
-		print_shape("pos_one_hot", pos_one_hot)
+		print_shape("pos_one_hot before reshape", pos_one_hot)
+
+		pos_one_hot = tf.reshape(pos_one_hot, [BATCH_SIZE, 2])
+
+		# shape of pos_one_hot: [BATCH_SIZE, 2]
+		print_shape("pos_one_hot after reshape", pos_one_hot)
 
 		## masking not needed since pos class vector will be zero for
 		## padded time steps

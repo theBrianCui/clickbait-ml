@@ -1,6 +1,7 @@
 import glob
 import os
 import numpy
+import sys
 from gensim.models import KeyedVectors
 from random import shuffle
 
@@ -106,10 +107,19 @@ class PreprocessData:
 	## The raw data matrix is shaped like ( (0|1, (tokens... )) ...)
 	def get_processed_data(self, mat, max_size):
 		X = [] # an array of tuples, each tuple is a tokenized sentence (in id form, including padding and unknown)
-		Y = [] # an array of numbers, 1 for clickbait, 0 otherwise
+		Y = [] # an array of...
 
 		for row in mat:
-			Y.append([row[0]])
+			# clickbait_one_hot = None
+			# if row[0] == 0:
+			# 	clickbait_one_hot = numpy.array([1, 0])
+			# elif row[0] == 1:
+			# 	clickbait_one_hot = numpy.array([0, 1])
+			# else:
+			# 	print "Fatal error: invalid clickbait value"
+			# 	sys.exit(1)
+
+			Y.append([ row[0] ])
 			X_row = list(row[1])
 
 			# truncate X_row if it's too long
