@@ -48,10 +48,10 @@ class PreprocessData:
 
 	## unknown words represented by len(vocab)
 	def get_unk_id(self):
-		return numpy.array([0.0] * 300)
+		return numpy.array([.8] * 300)
 
 	def get_pad_id(self):
-		return numpy.array([0.0] * 300)
+		return numpy.array([-1] * 300)
 
 	## get id of given token(pos) from dictionary dic.
 	## if not in dic, extend the dic if in train mode

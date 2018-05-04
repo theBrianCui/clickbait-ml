@@ -1,7 +1,7 @@
 import glob
 import sys
 import tensorflow as tf
-import numpy as np
+import numpy
 import time
 import math
 import os
@@ -41,8 +41,14 @@ class Model:
 	## and 0 for the padded part
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def get_mask(self, t):
+		# pad_tensor = tf.convert_to_tensor(numpy.array(-1), dtype=tf.float32)
+
 		mask = tf.cast(tf.not_equal(t, -1), tf.int32)
-		lengths = tf.reduce_sum(mask, reduction_indices=1)
+		print_shape("mask", mask) # [BATCH_SIZE, MAX_LEN, 300] --> [BATCH_SIZE, MAX_LEN]
+
+		padding_equiv_values = tf.reduce_sum(mask, axis = 2) # [BATCH_SIZE, MAX_LEN: sum of equals -1]
+		second_mask = tf.cast(tf.not_equal(padding_equiv_values, -300), tf.int32) # [BATCH_SIZE, MAX_LEN: booleans 1/0]
+		lengths = tf.reduce_sum(second_mask, reduction_indices=1) # [BATCH_SIZE, MAX_LEN: sum of booleans]
 		return mask, lengths
 
 	'''
@@ -57,6 +63,8 @@ class Model:
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def create_graph(self):
 		self.create_placeholders()
+
+		self._mask, self._lengths = self.get_mask(self._input_words)
 
 		## Since we are padding the input, we need to give
 		## the actual length of every instance in the batch
@@ -90,7 +98,7 @@ class Model:
 		## into a list of tensors (one per time step)
 		with tf.variable_scope("lstm"):
 			outputs, _ = tf.nn.bidirectional_dynamic_rnn(forward_cell, backward_cell,
-														 self._input_words, dtype=tf.float32) #sequence_length=self._lengths)
+														 self._input_words, dtype=tf.float32, sequence_length=self._lengths)
 
 		with tf.variable_scope("lstm_output"):
 			## concat forward and backward states
@@ -369,8 +377,6 @@ if __name__ == '__main__':
 	X_train, Y_train = p.get_processed_data(train_mat, MAX_LENGTH)
 	X_val, Y_val = p.get_processed_data(val_mat, MAX_LENGTH)
 	X_test, Y_test = p.get_processed_data(test_mat, MAX_LENGTH)
-
-	# TODO model not ready. exit.
 
 	if experiment_type == 'train':
 		if os.path.exists(train_dir):
