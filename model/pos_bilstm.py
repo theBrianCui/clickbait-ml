@@ -108,14 +108,14 @@ class Model:
 			self._probabilities = tf.nn.softmax(logits) # shape: [BATCH_SIZE, 2]
 			print_shape("self._probabilities", self._probabilities)
 
-		# [BATCH_SIZE, 2], [BATCH_SIZE, 2]
+		# [BATCH_SIZE, 1], [BATCH_SIZE, 2]
 		self._loss = self.cost(self._output_clickbait, self._probabilities)
 		print_shape("self._loss", self._loss)
 
 		self._average_loss = self._loss/tf.cast(BATCH_SIZE, tf.float32)
 		print_shape("self._average_loss", self._average_loss)
 
-		# [BATCH_SIZE, 2], [BATCH_SIZE, 2]
+		# [BATCH_SIZE, 1], [BATCH_SIZE, 2]
 		self._accuracy = self.compute_accuracy(self._output_clickbait, self._probabilities) #, self._mask)
 		print_shape("self._accuracy", self._accuracy)
 
@@ -170,10 +170,12 @@ class Model:
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
 	def compute_accuracy(self, clickbait_or_not, probabilities, mask = None):
-		predicted_classes = tf.cast(tf.argmax(probabilities, dimension=2), tf.int32)
+		predicted_classes = tf.cast(tf.argmax(probabilities, dimension=1), tf.int32)
 		correct_predictions = tf.cast(tf.equal(predicted_classes, clickbait_or_not), tf.int32)
-		if (mask != None):
-			correct_predictions = tf.multiply(correct_predictions, mask)
+		
+		#if (mask != None):
+		#	correct_predictions = tf.multiply(correct_predictions, mask)
+		
 		return tf.cast(tf.reduce_sum(correct_predictions), tf.float32)
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
@@ -248,7 +250,7 @@ def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val):
 			loss += batch_loss
 			accuracy += batch_accuracy
 			total_len += batch_len
-			print "Summary Metrics[{0}] Loss: {1}, Accuracy: {2}, Total_Len: {3}".format(i, loss, accuracy, total_len)
+			#print "Summary Metrics[{0}] Loss: {1}, Accuracy: {2}, Total_Len: {3}".format(i, loss, accuracy, total_len)
 
 	loss = loss/total_len if total_len != 0 else 0
 	accuracy = accuracy/total_len if total_len != 0 else 1
