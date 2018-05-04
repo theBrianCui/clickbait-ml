@@ -5,10 +5,10 @@ from gensim.models import KeyedVectors
 from random import shuffle
 
 class PreprocessData:
-	def __init__(self):
+	def __init__(self, pretrained_vectors):
 		self.vocabulary = {}
 		self.pos_tags = {}
-		self.filename = '/Users/Akshay/Downloads/GoogleNews-vectors-negative300.bin'
+		self.filename = pretrained_vectors
 		self.model = KeyedVectors.load_word2vec_format(self.filename, binary=True)
 
 	## Get standard split for training, validation, and test

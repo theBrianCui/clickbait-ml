@@ -296,17 +296,27 @@ def test(words_test, clickbait_test, train_dir):
 
 
 if __name__ == '__main__':
+	if len(sys.argv) < 6:
+		print "Usage: python pos_bilstm.py <clickbait data> <non clickbait data>"
+		print "                            <train directory> <experiment type>"
+		print "                            <pretrained embedding vectors>"
+		sys.exit(1)
+
 	# specify location of clickbait and normal files
 	clickbait_raw_path = sys.argv[1]
 	normal_raw_path = sys.argv[2]
 
 	# specify directory where model is saved or loaded
 	train_dir = sys.argv[3]
+
+	if not os.path.exists(train_dir):
+		os.makedirs(train_dir)
+
 	# specify train or test
 	experiment_type = sys.argv[4]
 
 	# initialize a new PreprocessData instance
-	p = PreprocessData()
+	p = PreprocessData(sys.argv[5])
 	# split them into training, validation, and test files
 	# these will be saved in train_dir/train.txt, train_dir/val.txt, train_dir/test.txt
 	train_file, val_file, test_file = p.get_standard_split(
