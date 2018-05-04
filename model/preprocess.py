@@ -3,7 +3,7 @@ import os
 import numpy
 import sys
 from gensim.models import KeyedVectors
-from random import shuffle
+import random
 
 class PreprocessData:
 	def __init__(self, pretrained_vectors):
@@ -23,8 +23,9 @@ class PreprocessData:
 			for line in f:
 				all_examples.append(str(0) + " " + line)
 
-		# shuffle all the examples in place
-		shuffle(all_examples)
+		# shuffle all the examples in place, with constant seed for reproducability
+		random.seed(12345)
+		random.shuffle(all_examples)
 		num_examples = len(all_examples)
 
 		train_file = os.getcwd() + '/train.txt'
