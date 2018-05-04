@@ -17,6 +17,9 @@ VALIDATION_FREQUENCY = 10
 CHECKPOINT_FREQUENCY = 50
 NO_OF_EPOCHS = 6
 
+def print_shape(name, tensor):
+	print "{0} shape: {1}".format(name, tensor.get_shape())
+
 ## Model class is adatepd from model.py found here
 ## https://github.com/monikkinom/ner-lstm/
 class Model:
@@ -102,13 +105,20 @@ class Model:
 			## It contains the probabilities of
 			## different POS tags for each batch
 			## example at each time step
-			self._probabilities = tf.nn.softmax(logits)
+			self._probabilities = tf.nn.softmax(logits) # shape: [BATCH_SIZE, MAX_LEN, 2], desired: [BATCH_SIZE, 2]
+			print_shape("self._probabilities", self._probabilities)
 
 		self._loss = self.cost(self._output_clickbait, self._probabilities)
+		print_shape("self._loss", self._loss)
+
 		self._average_loss = self._loss/tf.cast(BATCH_SIZE, tf.float32)
+		print_shape("self._average_loss", self._average_loss)
 
 		self._accuracy = self.compute_accuracy(self._output_clickbait, self._probabilities) #, self._mask)
+		print_shape("self._accuracy", self._accuracy)
+
 		self._average_accuracy = self._accuracy/tf.cast(BATCH_SIZE, tf.float32)
+		print_shape("self._average_accuracy", self._average_accuracy)
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py weight_and_bias function
 	## Creates a fully connected layer with the given dimensions and parameters
@@ -119,13 +129,20 @@ class Model:
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py __init__ function
 	def compute_logits(self, outputs):
-		softmax_input_size = int(outputs.get_shape()[2])
-		outputs = tf.reshape(outputs, [-1, softmax_input_size])
+		softmax_input_size = int(outputs.get_shape()[2]) # shape: 600
+		print "Softmax input size shape: {0}".format(softmax_input_size)
+		outputs = tf.reshape(outputs, [-1, softmax_input_size]) # shape: [BATCH_SIZE * MAX_LEN = 2560, 600]
+		print "Outputs shape: {0}".format(outputs.get_shape())
 
 		weights, bias = self.initialize_fc_layer(softmax_input_size, 2)
+		print_shape("weights", weights) # shape: (600, 2)
+		print_shape("bias", bias) # shape: (2)
 
 		logits = tf.matmul(outputs, weights) + bias
+		print "Logits before reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE * MAX_LEN = 2560, 2]
+
 		logits = tf.reshape(logits, [-1, self._sequence_len, 2])
+		print "Logits after reshape: {0}".format(logits.get_shape()) # shape: [BATCH_SIZE, MAX_LEN, 2]
 		return logits
 
 	def add_loss_summary(self):
@@ -152,9 +169,14 @@ class Model:
 
 	# Adapted from https://github.com/monikkinom/ner-lstm/blob/master/model.py cost function
 	def cost(self, clickbait_or_not, probabilities):
+		# shape of probabilities: [BATCH_SIZE, MAX_LEN, 2]
 		pos_classes = tf.cast(clickbait_or_not, tf.int32)
+
 		pos_one_hot = tf.one_hot(pos_classes, 2)
 		pos_one_hot = tf.cast(pos_one_hot, tf.float32)
+		# shape of pos_one_hot: [BATCH_SIZE, 1, 2]
+		print_shape("pos_one_hot", pos_one_hot)
+
 		## masking not needed since pos class vector will be zero for
 		## padded time steps
 		cross_entropy = pos_one_hot*tf.log(probabilities)
@@ -212,6 +234,8 @@ def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val):
 			loss += batch_loss
 			accuracy += batch_accuracy
 			total_len += batch_len
+			print "Summary Metrics[{0}] Loss: {1}, Accuracy: {2}, Total_Len: {3}".format(i, loss, accuracy, total_len)
+
 	loss = loss/total_len if total_len != 0 else 0
 	accuracy = accuracy/total_len if total_len != 0 else 1
 	return loss, accuracy
