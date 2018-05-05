@@ -1,0 +1,137 @@
+Using max length: 6
+mask shape: (128, 6, 300)
+outputs after concat shape: (128, 6, 600)
+Flattened output size: 3600
+Softmax input size shape: 600
+Outputs shape: (128, 3600)
+weights shape: (3600, 2)
+bias shape: (2,)
+Logits before reshape: (128, 2)
+self._probabilities shape: (128, 2)
+pos_one_hot before reshape shape: (128, 1, 2)
+pos_one_hot after reshape shape: (128, 2)
+self._loss shape: ()
+self._average_loss shape: ()
+clickbait_or_not shape: (128, 1)
+flatten_clickbait shape: (128,)
+WARNING:tensorflow:From model/pos_bilstm.py:185: calling argmax (from tensorflow.python.ops.math_ops) with dimension is deprecated and will be removed in a future version.
+Instructions for updating:
+Use the `axis` argument instead
+predicted_classes shape: (128,)
+correct_predictions shape: (128,)
+self._accuracy shape: ()
+self._average_accuracy shape: ()
+2018-05-05 03:14:10.657852: I tensorflow/core/platform/cpu_feature_guard.cc:140] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+1.98918914795 10 batches ====> Validation Accuracy 0.882, Validation Loss 0.265
+9.69156122208 20 batches ====> Validation Accuracy 0.904, Validation Loss 0.205
+17.3995161057 30 batches ====> Validation Accuracy 0.915, Validation Loss 0.193
+25.1673262119 40 batches ====> Validation Accuracy 0.935, Validation Loss 0.149
+32.9311151505 50 batches ====> Validation Accuracy 0.950, Validation Loss 0.130
+42.2388222218 60 batches ====> Validation Accuracy 0.942, Validation Loss 0.136
+51.5743231773 70 batches ====> Validation Accuracy 0.950, Validation Loss 0.128
+59.6633012295 80 batches ====> Validation Accuracy 0.957, Validation Loss 0.104
+67.7475450039 90 batches ====> Validation Accuracy 0.951, Validation Loss 0.127
+75.9064090252 100 batches ====> Validation Accuracy 0.959, Validation Loss 0.100
+84.5693700314 110 batches ====> Validation Accuracy 0.959, Validation Loss 0.104
+93.0935790539 120 batches ====> Validation Accuracy 0.959, Validation Loss 0.104
+101.355735064 130 batches ====> Validation Accuracy 0.961, Validation Loss 0.100
+109.685232162 140 batches ====> Validation Accuracy 0.960, Validation Loss 0.098
+118.036390066 150 batches ====> Validation Accuracy 0.961, Validation Loss 0.100
+126.579004049 160 batches ====> Validation Accuracy 0.956, Validation Loss 0.110
+135.061279058 170 batches ====> Validation Accuracy 0.961, Validation Loss 0.096
+143.771585226 180 batches ====> Validation Accuracy 0.960, Validation Loss 0.102
+152.31501317 190 batches ====> Validation Accuracy 0.960, Validation Loss 0.097
+160.830665112 200 batches ====> Validation Accuracy 0.964, Validation Loss 0.096
+169.690117121 210 batches ====> Validation Accuracy 0.966, Validation Loss 0.093
+178.399771214 220 batches ====> Validation Accuracy 0.962, Validation Loss 0.095
+187.192653179 230 batches ====> Validation Accuracy 0.967, Validation Loss 0.093
+196.01774621 240 batches ====> Validation Accuracy 0.961, Validation Loss 0.097
+204.854595184 250 batches ====> Validation Accuracy 0.966, Validation Loss 0.093
+214.16834116 260 batches ====> Validation Accuracy 0.966, Validation Loss 0.089
+223.18940711 270 batches ====> Validation Accuracy 0.964, Validation Loss 0.091
+232.249210119 280 batches ====> Validation Accuracy 0.960, Validation Loss 0.105
+241.325425148 290 batches ====> Validation Accuracy 0.962, Validation Loss 0.095
+250.348598003 300 batches ====> Validation Accuracy 0.964, Validation Loss 0.094
+266.200804234 310 batches ====> Validation Accuracy 0.965, Validation Loss 0.095
+275.441699028 320 batches ====> Validation Accuracy 0.958, Validation Loss 0.108
+284.689697027 330 batches ====> Validation Accuracy 0.966, Validation Loss 0.091
+294.000458002 340 batches ====> Validation Accuracy 0.966, Validation Loss 0.090
+303.361432076 350 batches ====> Validation Accuracy 0.965, Validation Loss 0.092
+313.037268162 360 batches ====> Validation Accuracy 0.967, Validation Loss 0.090
+322.561880112 370 batches ====> Validation Accuracy 0.968, Validation Loss 0.090
+332.136711121 380 batches ====> Validation Accuracy 0.964, Validation Loss 0.091
+341.733313084 390 batches ====> Validation Accuracy 0.966, Validation Loss 0.090
+351.413453102 400 batches ====> Validation Accuracy 0.965, Validation Loss 0.091
+361.443745136 410 batches ====> Validation Accuracy 0.963, Validation Loss 0.096
+371.276698112 420 batches ====> Validation Accuracy 0.969, Validation Loss 0.085
+381.231738091 430 batches ====> Validation Accuracy 0.969, Validation Loss 0.087
+391.251157999 440 batches ====> Validation Accuracy 0.967, Validation Loss 0.089
+401.509989023 450 batches ====> Validation Accuracy 0.966, Validation Loss 0.088
+413.01722908 460 batches ====> Validation Accuracy 0.965, Validation Loss 0.089
+425.19118619 470 batches ====> Validation Accuracy 0.968, Validation Loss 0.093
+435.661160231 480 batches ====> Validation Accuracy 0.968, Validation Loss 0.091
+446.033586025 490 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+456.494649172 500 batches ====> Validation Accuracy 0.966, Validation Loss 0.089
+467.333340168 510 batches ====> Validation Accuracy 0.964, Validation Loss 0.091
+477.927396059 520 batches ====> Validation Accuracy 0.967, Validation Loss 0.088
+488.659148216 530 batches ====> Validation Accuracy 0.967, Validation Loss 0.087
+499.484553099 540 batches ====> Validation Accuracy 0.967, Validation Loss 0.086
+510.367374182 550 batches ====> Validation Accuracy 0.963, Validation Loss 0.090
+521.638619184 560 batches ====> Validation Accuracy 0.965, Validation Loss 0.089
+532.688707113 570 batches ====> Validation Accuracy 0.966, Validation Loss 0.092
+543.821405172 580 batches ====> Validation Accuracy 0.965, Validation Loss 0.092
+555.115791082 590 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+566.448772192 600 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+578.208977222 610 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+589.843546152 620 batches ====> Validation Accuracy 0.968, Validation Loss 0.092
+601.496210098 630 batches ====> Validation Accuracy 0.965, Validation Loss 0.090
+613.302767038 640 batches ====> Validation Accuracy 0.968, Validation Loss 0.091
+625.177647114 650 batches ====> Validation Accuracy 0.969, Validation Loss 0.086
+637.646859169 660 batches ====> Validation Accuracy 0.966, Validation Loss 0.090
+649.914577007 670 batches ====> Validation Accuracy 0.964, Validation Loss 0.093
+662.190784216 680 batches ====> Validation Accuracy 0.970, Validation Loss 0.087
+674.681194067 690 batches ====> Validation Accuracy 0.969, Validation Loss 0.088
+687.005054235 700 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+699.786488056 710 batches ====> Validation Accuracy 0.966, Validation Loss 0.086
+712.288910151 720 batches ====> Validation Accuracy 0.968, Validation Loss 0.084
+724.996803999 730 batches ====> Validation Accuracy 0.967, Validation Loss 0.089
+737.912557125 740 batches ====> Validation Accuracy 0.967, Validation Loss 0.091
+751.495347023 750 batches ====> Validation Accuracy 0.969, Validation Loss 0.086
+764.801459074 760 batches ====> Validation Accuracy 0.970, Validation Loss 0.085
+777.851292133 770 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+791.031008005 780 batches ====> Validation Accuracy 0.967, Validation Loss 0.091
+804.335959196 790 batches ====> Validation Accuracy 0.963, Validation Loss 0.094
+817.796322107 800 batches ====> Validation Accuracy 0.966, Validation Loss 0.092
+831.789014101 810 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+845.449147224 820 batches ====> Validation Accuracy 0.968, Validation Loss 0.086
+859.354994059 830 batches ====> Validation Accuracy 0.967, Validation Loss 0.090
+873.663410187 840 batches ====> Validation Accuracy 0.968, Validation Loss 0.086
+887.674363136 850 batches ====> Validation Accuracy 0.967, Validation Loss 0.086
+902.632123232 860 batches ====> Validation Accuracy 0.970, Validation Loss 0.084
+917.163318157 870 batches ====> Validation Accuracy 0.970, Validation Loss 0.087
+931.610341072 880 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+946.114575148 890 batches ====> Validation Accuracy 0.965, Validation Loss 0.091
+960.712117195 900 batches ====> Validation Accuracy 0.968, Validation Loss 0.091
+975.840232134 910 batches ====> Validation Accuracy 0.966, Validation Loss 0.097
+992.448262215 920 batches ====> Validation Accuracy 0.968, Validation Loss 0.094
+1007.64146805 930 batches ====> Validation Accuracy 0.967, Validation Loss 0.092
+1022.79668117 940 batches ====> Validation Accuracy 0.969, Validation Loss 0.092
+1037.99511623 950 batches ====> Validation Accuracy 0.966, Validation Loss 0.089
+1053.79934001 960 batches ====> Validation Accuracy 0.969, Validation Loss 0.085
+1069.2934072 970 batches ====> Validation Accuracy 0.970, Validation Loss 0.085
+1084.91432023 980 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+1100.64140821 990 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+1116.808465 1000 batches ====> Validation Accuracy 0.969, Validation Loss 0.088
+1133.22328615 1010 batches ====> Validation Accuracy 0.969, Validation Loss 0.087
+1149.42627621 1020 batches ====> Validation Accuracy 0.969, Validation Loss 0.087
+1165.70822811 1030 batches ====> Validation Accuracy 0.968, Validation Loss 0.088
+1182.24071312 1040 batches ====> Validation Accuracy 0.969, Validation Loss 0.087
+1198.86746311 1050 batches ====> Validation Accuracy 0.966, Validation Loss 0.092
+1215.87462211 1060 batches ====> Validation Accuracy 0.970, Validation Loss 0.092
+1232.69934011 1070 batches ====> Validation Accuracy 0.971, Validation Loss 0.087
+1249.65043902 1080 batches ====> Validation Accuracy 0.968, Validation Loss 0.087
+1266.68608618 1090 batches ====> Validation Accuracy 0.970, Validation Loss 0.083
+1283.83722806 1100 batches ====> Validation Accuracy 0.969, Validation Loss 0.085
+1301.61547613 1110 batches ====> Validation Accuracy 0.967, Validation Loss 0.090
+1319.18600702 1120 batches ====> Validation Accuracy 0.970, Validation Loss 0.086
+1336.81316209 1130 batches ====> Validation Accuracy 0.969, Validation Loss 0.084

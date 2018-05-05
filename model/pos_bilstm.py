@@ -12,10 +12,10 @@ from random import shuffle
 from preprocess import PreprocessData
 
 MAX_LENGTH = 20
-BATCH_SIZE = 200
+BATCH_SIZE = 128
 VALIDATION_FREQUENCY = 10
 CHECKPOINT_FREQUENCY = 50
-NO_OF_EPOCHS = 6
+NO_OF_EPOCHS = 4
 
 def print_shape(name, tensor):
 	print "{0} shape: {1}".format(name, tensor.get_shape())
@@ -354,6 +354,7 @@ if __name__ == '__main__':
 		print "Usage: python pos_bilstm.py <clickbait data> <non clickbait data>"
 		print "                            <train directory> <experiment type>"
 		print "                            <pretrained embedding vectors>"
+		print "                            [max length=20]"
 		sys.exit(1)
 
 	# specify location of clickbait and normal files
@@ -368,6 +369,10 @@ if __name__ == '__main__':
 
 	# specify train or test
 	experiment_type = sys.argv[4]
+
+	if len(sys.argv) >= 6:
+		MAX_LENGTH = int(sys.argv[6])
+	print "Using max length: {0}".format(MAX_LENGTH)
 
 	# initialize a new PreprocessData instance
 	p = PreprocessData(sys.argv[5])
