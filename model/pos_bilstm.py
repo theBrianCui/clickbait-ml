@@ -129,6 +129,10 @@ class Model:
 
 		self._average_accuracy = self._accuracy/tf.cast(BATCH_SIZE, tf.float32)
 		print_shape("self._average_accuracy", self._average_accuracy)
+		
+		self._true_pos = self.true_positives(self._output_clickbait, self._probabilities)
+		self._false_pos = self.false_positives(self._output_clickbait, self._probabilities)
+		self._relevant_ele = self.relevant_elements(self._output_clickbait, self._probabilities)
 
 	# Taken from https://github.com/monikkinom/ner-lstm/blob/master/model.py weight_and_bias function
 	## Creates a fully connected layer with the given dimensions and parameters
@@ -211,6 +215,27 @@ class Model:
 		## padded time steps
 		cross_entropy = pos_one_hot*tf.log(probabilities)
 		return -tf.reduce_sum(cross_entropy)
+	
+	def true_positives(self, clickbait_or_not, probabilities):
+		flatten_clickbait = tf.reshape(clickbait_or_not, [-1])
+		predicted_classes = tf.cast(tf.argmax(probabilities, dimension=1), tf.int32) # shape [BATCH_SIZE]
+
+		true_pos = tf.logical_and(tf.equal(predicted_classes, 1), tf.equal(1, flatten_clickbait))
+		true_pos = tf.cast(true_pos, tf.int32) # shape [BATCH_SIZE]
+		return tf.cast(tf.reduce_sum(true_pos), tf.float32)
+
+	def false_positives(self, clickbait_or_not, probabilities):
+		flatten_clickbait = tf.reshape(clickbait_or_not, [-1])
+		predicted_classes = tf.cast(tf.argmax(probabilities, dimension=1), tf.int32) # shape [BATCH_SIZE]
+
+		false_pos = tf.logical_and(tf.equal(predicted_classes, 1), tf.equal(0, flatten_clickbait))
+		false_pos = tf.cast(false_pos, tf.int32) # shape [BATCH_SIZE]
+		return tf.cast(tf.reduce_sum(false_pos), tf.float32)
+
+	def relevant_elements(self, clickbait_or_not, probabilities):
+		flatten_clickbait = tf.reshape(clickbait_or_not, [-1])
+		relevant = tf.cast(tf.equal(1, clickbait_or_not), tf.int32) # shape [BATCH_SIZE]
+		return tf.cast(tf.reduce_sum(relevant), tf.float32)
 
 	@property
 	def input_words(self):
@@ -227,6 +252,18 @@ class Model:
 	@property
 	def accuracy(self):
 		return self._accuracy
+
+	@property
+	def true_pos(self):
+		return self._true_pos
+
+	@property
+	def false_pos(self):
+		return self._false_pos
+
+	@property
+	def relevant_ele(self):
+		return self._relevant_ele
 
 	@property
 	def total_length(self):
@@ -255,20 +292,28 @@ def generate_epochs(X, Y, no_of_epochs):
 
 ## Compute overall loss and accuracy on dev/test data
 def compute_summary_metrics(sess, m, sentence_words_val, sentence_tags_val):
-	loss, accuracy, total_len = 0.0, 0.0, 0
+	loss, accuracy, total_len, true_pos, false_pos, relevant_ele = 0.0, 0.0, 0, 0.0, 0.0, 0.0
+
 	for i, epoch in enumerate(generate_epochs(sentence_words_val, sentence_tags_val, 1)):
 		for step, (X, Y) in enumerate(epoch):
-			batch_loss, batch_accuracy, batch_len = \
-				sess.run([m.loss, m.accuracy, m.total_length],
+			batch_loss, batch_accuracy, batch_len, batch_true_pos, batch_false_pos, batch_relevant_ele = \
+				sess.run([m.loss, m.accuracy, m.total_length, m.true_pos, m.false_pos, m.relevant_ele],
 						 feed_dict={m.input_words: X, m.output_clickbait: Y})
 			loss += batch_loss
 			accuracy += batch_accuracy
 			total_len += batch_len
+			true_pos += batch_true_pos
+			false_pos += batch_false_pos
+			relevant_ele += batch_relevant_ele
+
 			# print "Summary Metrics[{0}] Loss: {1}, Accuracy: {2}, Total_Len: {3}".format(i, loss, accuracy, total_len)
 
 	loss = loss/total_len if total_len != 0 else 0
 	accuracy = accuracy/total_len if total_len != 0 else 1
-	return loss, accuracy
+	precision = true_pos / (true_pos + false_pos)
+	recall = true_pos / (relevant_ele)
+
+	return loss, accuracy, precision, recall
 
 ## train and test adapted from https://github.com/tensorflow/tensorflow/blob/master/tensorflow/
 ## models/image/cifar10/cifar10_train.py and cifar10_eval.py
@@ -312,7 +357,7 @@ def train(words_train, clickbait_train, words_validation,
 				duration = time.time() - start_time
 				j += 1
 				if j % VALIDATION_FREQUENCY == 0:
-					val_loss, val_accuracy = compute_summary_metrics(sess, m, words_validation, clickbait_validation)
+					val_loss, val_accuracy, val_precision, val_recall = compute_summary_metrics(sess, m, words_validation, clickbait_validation)
 					summary = tf.Summary()
 					summary.ParseFromString(summary_value)
 					summary.value.add(tag='Validation Loss', simple_value=val_loss)
@@ -343,10 +388,12 @@ def test(words_test, clickbait_test, train_dir):
 				saver.restore(sess, ckpt.model_checkpoint_path)
 
 				global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
-			test_loss, test_accuracy = compute_summary_metrics(sess, m, words_test,
+			test_loss, test_accuracy, test_precision, test_recall = compute_summary_metrics(sess, m, words_test,
 															   clickbait_test)
 			print 'Test Accuracy: {:.3f}'.format(test_accuracy)
 			print 'Test Loss: {:.3f}'.format(test_loss)
+			print 'Test Precision: {:.3f}'.format(test_precision)
+			print 'Test Recall: {:.3f}'.format(test_recall)
 
 
 if __name__ == '__main__':
