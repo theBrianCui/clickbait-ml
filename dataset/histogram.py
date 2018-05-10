@@ -1,5 +1,7 @@
+import sys
+
 firstwords = {}
-with open("clickbait.in", "r") as f:
+with open(sys.argv[1], "r") as f:
     for line in f:
         first_word = line.split(" ")[0]
         if first_word not in firstwords:
