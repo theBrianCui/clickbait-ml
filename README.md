@@ -1,10 +1,10 @@
 # clickbait-ml
 
-This project stores the code and dataset used for the paper "Detecting Clickbait Hyperlinks Using Deep Learning" by Brian Cui and Akshay Gupta for the course CS 388 Natural Language Processing at the University of Texas at Austin. The project was written in Tensorflow on Python 2.
+This project stores the code and dataset used for the paper "Detecting Clickbait Hyperlinks Using Deep Learning" by Brian Cui and Akshay Gupta for the course CS 388 Natural Language Processing at the University of Texas at Austin. The paper is contained in this repository as `paper.pdf`. The project was written in Tensorflow on Python 2.
 
 To test and train our model, you'll need the Google word2vec pretrained word embeddings: https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit
 
-The web scraper and instructions for using it are stored in the `scraper` directory.
+The web scraper and instructions for using it are stored in the `scraper` directory. The datasets we collected are available in the `dataset` directory.
 
 ## Results
 
